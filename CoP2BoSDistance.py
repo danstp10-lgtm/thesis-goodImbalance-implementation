@@ -22,7 +22,7 @@ while True:
 
         # Denoising
         rawFrameL = rawFrameL[:,2:] # remove noise columns
-        rawFrameL = cv2.fastNlMeansDenoising(rawFrameL, h=17)
+        rawFrameL = cv2.fastNlMeansDenoising(rawFrameL, h=10)
         # rawFrameR = rawFrameR[:, 2:]  # remove noise columns
         # rawFrameR = cv2.fastNlMeansDenoising(rawFrameR, h=17)
 
@@ -42,7 +42,7 @@ while True:
         CoP = (int((rawFrameL * x_grid).sum() / pressureSum), int((rawFrameL * y_grid).sum() / pressureSum))
 
         # Calculate BoS
-        binaryMask = (rawFrameL > 140).astype(np.uint8) * 255
+        binaryMask = (rawFrameL > 80).astype(np.uint8) * 255
         contours, _ = cv2.findContours(binaryMask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             allPts = np.vstack(contours)
