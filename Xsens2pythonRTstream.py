@@ -8,14 +8,14 @@ def parse_position_packet(message, lastReceived, lastMessageType):
     if not isinstance(message, (bytes, bytearray)):
         message = bytes(message)
         
-    message_id = message[0:6].decode('ascii', errors='ignore')
+    messageId = message[0:6].decode('ascii', errors='ignore')
     try:
-        messageType = int(message_id[4:6])
+        messageType = int(messageId[4:6])
     except ValueError:
         messageType = 0
             
     sampleCounter = struct.unpack('>I', message[6:10])[0] + 1
-    datagram_counter = f"{message[10]:b}"
+    datagramCounter = f"{message[10]:b}"
     numSegments = int(message[11])
     timeCode = float(struct.unpack('>I', message[12:16])[0])
     
@@ -48,18 +48,17 @@ def parse_position_packet(message, lastReceived, lastMessageType):
         pos[1, :] = floats[0:3]
         ori[1, :] = floats[3:7]
 
-    elif messageType == 3: # Hand Point Data
+    elif messageType == 3: # Point Data, likely no Hand
         packetSize = 16
+        pos = np.zeros((numSegments, 3))
         for s in range(numSegments):
             start = headerLength + s*packetSize
-            floats = struct.unpack('>3f', message[start+4 : start + packetSize])
-
-            print(floats)
-            # pos[s, :] = floats[0:3]
-        print(f"messageId: {message_id}\n"
+            floats = struct.unpack('>3f', message[start + 4 : start + packetSize])
+            pos[s, :] = floats[0:3]
+        print(f"messageId: {messageId}\n"
             f"messageType: {messageType}\n"
             f"sampleCounter: {sampleCounter}\n"
-            f"datagramCounter: {datagram_counter}\n"
+            f"datagramCounter: {datagramCounter}\n"
             f"numSegments: {numSegments}\n"
             f"timeCode: {timeCode:.0f}\n"
             f"segments: {pos}\n"
@@ -72,10 +71,10 @@ def parse_position_packet(message, lastReceived, lastMessageType):
         pos = floats[0:3]
     else:
         newPacketFlag = 1
-    # print(f"messageId: {message_id}\n"
+    # print(f"messageId: {messageId}\n"
     #     f"messageType: {messageType}\n"
     #     f"sampleCounter: {sampleCounter}\n"
-    #     f"datagramCounter: {datagram_counter}\n"
+    #     f"datagramCounter: {datagramCounter}\n"
     #     f"numSegments: {numSegments}\n"
     #     f"timeCode: {timeCode:.0f}\n"
     #     f"Data: {pos}\n")
