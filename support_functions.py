@@ -102,71 +102,59 @@ class TSPDecoder:
                 print("Undecodable buffer of length ", len(buf))
 
     def updateFrame(self) -> None:
-        """
-        Updates the frame data continuously from the TSP device.
+        """Stream reader using a rolling byte buffer to avoid binary newline collisions."""
+        buffer = bytearray()
+        payload_len = self.rows * self.columns + 1
 
-        Returns
-        -------
-        None
-        """
-
-        # Resynchronize TSP communication
-        self.resync()
-
-        # Run indefinitely, possible because a Thread was opened
         while True:
-
-            time.sleep(0.0010)  # small delay to break give TSP time to push more data
-
-            # Only try to read frames when the serial object is available
             try:
-                
-                # Check for lost synchronization and resync if needed
-                l = self.port.readline()
-                
-                img = np.zeros((self.rows, self.columns))
-                
-                if l.decode()[-4:] == "FR0\n":
-                    self.frame = img
+                # Read available bytes into local buffer
+                if self.port.in_waiting > 0:
+                    buffer.extend(self.port.read(self.port.in_waiting))
+
+                # Look for 'FR0\n' (Idle/Zero frame header)
+                idx_fr0 = buffer.find(b"FR0\n")
+                if idx_fr0 != -1:
+                    self.frame = np.zeros(
+                        (self.rows, self.columns), dtype=np.float32
+                    )
                     self.frame_available = True
+                    buffer = buffer[idx_fr0 + 4 :]
                     continue
-                
-                if l.decode()[-6:] != "FRAME\n":
-                    print("Lost sync '%s'" % (l.decode()))
-                    self.resync()
 
-                # Calculate the frame length
-                length = self.rows * self.columns + 1
-                
-                res =  self.port.read(length)
-                length -= len(res)
+                # Look for 'FRAME\n' (Active payload header)
+                idx_frame = buffer.find(b"FRAME\n")
+                if idx_frame != -1:
+                    start_payload = idx_frame + 6
+                    # Wait until full payload is in the buffer
+                    if len(buffer) >= start_payload + payload_len:
+                        payload = buffer[
+                            start_payload : start_payload + payload_len - 1
+                        ]
+                        buffer = buffer[start_payload + payload_len :]
 
-                # Continue reading until the specified length is reached
-                while length != 0:
-                    l = self.port.read(length)
-                    length -= len(l)
-                    res += l
+                        # Convert binary bytes to pressure frame
+                        img = np.frombuffer(payload, dtype=np.uint8).astype(
+                            np.float32
+                        )
+                        if img.size == self.rows * self.columns:
+                            img = img.reshape((self.rows, self.columns)) * 1.5
+                            self.frame = np.clip(np.rot90(img, 2), 0, 255)
+                            self.frame_available = True
+                    else:
+                        time.sleep(0.001)
+                        continue
+                else:
+                    # Prevent buffer from growing infinitely if desynchronized
+                    if len(buffer) > 4000:
+                        buffer.clear()
+                    time.sleep(0.001)
 
-                # Process the received data into the frame
-                r = 0
-                c = 0
-                for v in res[:-1]:
-                    img[r][c] = 1.5 * (v)
-                    c += 1
-                    if c == self.columns:
-                        c = 0
-                        r += 1
-
-                # Update the frame with clipped and rotated image data
-                self.frame = np.clip(np.rot90(img, 2), 0, 255)
-                self.frame_available = True
-                
-                
-                self.availabool = True
-
-            # Make the serial flag unavailable if serial is closed
             except serial.serialutil.SerialException:
                 self.availabool = False
+                time.sleep(0.1)
+            except Exception:
+                time.sleep(0.001)
 
     def readFrame(self) -> np.array:
         """
