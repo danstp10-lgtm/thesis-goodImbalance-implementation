@@ -33,9 +33,12 @@ def getCleanFrames(TSP_L,TSP_R):
 
 def calculateCoP(rawFrame):
     pressureSum = rawFrame.sum()
-    x_grid, y_grid = np.indices(rawFrame.shape)
-    CoP_pixel = (int((rawFrame * x_grid).sum() / pressureSum), int((rawFrame * y_grid).sum() / pressureSum))
-    CoP_cm = (CoP_pixel[0]*pixelXLength,CoP_pixel[1]*pixelYLength)
+    if pressureSum>0:
+        x_grid, y_grid = np.indices(rawFrame.shape)
+        CoP_pixel = (int((rawFrame * x_grid).sum() / pressureSum), int((rawFrame * y_grid).sum() / pressureSum))
+        CoP_cm = (CoP_pixel[0]*pixelXLength,CoP_pixel[1]*pixelYLength)
+    else:
+        CoP_pixel, CoP_cm = [0,0],[0,0]
     return CoP_pixel,CoP_cm
 
 def calculateMinDistCoP2BoS(rawFrame, displayFrame,CoP_cm):
@@ -45,7 +48,7 @@ def calculateMinDistCoP2BoS(rawFrame, displayFrame,CoP_cm):
     distancesCoP2BoS = [] 
     if contours:
         allPts = np.vstack(contours)
-        BoS_pixel = cv2.convexHull(allPts).squeeze()
+        BoS_pixel = cv2.convexHull(allPts).reshape(-1, 2)
         BoS_cm = [(a * pixelXLength, b * pixelYLength) for a, b in BoS_pixel]
         # Add BoS_pixel to display
         cv2.drawContours(displayFrame, [BoS_pixel], -1, (255, 0, 0), 1)
