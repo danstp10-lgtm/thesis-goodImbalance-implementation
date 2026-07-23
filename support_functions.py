@@ -57,7 +57,7 @@ class TSPDecoder:
 
         # Initialize serial port communication with specified parameters
         self.port = serial.Serial(port, baudrate, timeout=1)
-
+        self.port.reset_input_buffer()
         # Initialize the bool to check serial connection is present
         self.availabool = True
 
@@ -82,7 +82,7 @@ class TSPDecoder:
         -------
         None
         """
-
+        
         antispam = True
         while True:
             # Read a line from the serial port

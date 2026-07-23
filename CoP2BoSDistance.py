@@ -17,38 +17,39 @@ pixelYLength=0.6
 
 # Connect to Patches
 TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
-# TSP_R = TSPDecoder(port="COM9",rows=rows, columns=columns) # second touch patch
+TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
 
 while True:
-    if TSP_L.frame_available:
+    if TSP_L.frame_available and TSP_R.frame_available:
         # Get raw pressure data
         rawFrameL = TSP_L.readFrame().astype(np.uint8)
-        # rawFrameR = TSP_R.readFrame().astype(np.uint8)
+        rawFrameR = TSP_R.readFrame().astype(np.uint8)
 
         # Denoising
-        rawFrameL = rawFrameL[:,2:] # remove noise columns
+        # rawFrameL = rawFrameL[:,2:] # remove noise columns
         rawFrameL = cv2.fastNlMeansDenoising(rawFrameL, h=10)
         # rawFrameR = rawFrameR[:, 2:]  # remove noise columns
-        # rawFrameR = cv2.fastNlMeansDenoising(rawFrameR, h=17)
+        rawFrameR = cv2.fastNlMeansDenoising(rawFrameR, h=10)
 
         # add empty space between hands
         padding = np.zeros((rows,betweenHandDistance))
-        rawFrameL = np.concatenate([rawFrameL, padding], axis=1)
+        rawFrame = np.concatenate([rawFrameL, padding,rawFrameR], axis=1)
+        # rawFrame = rawFrame+padding+rawFrameR
 
         # simulate a second hand
-        flipped = cv2.flip(rawFrameL, 1)
-        rawFrameL = np.concatenate([rawFrameL, flipped], axis=1)
+        # flipped = cv2.flip(rawFrame, 1)
+        # rawFrame = np.concatenate([rawFrame, flipped], axis=1)
 
-        displayFrame = np.zeros(rawFrameL.shape, np.uint8)
+        displayFrame = np.zeros(rawFrame.shape, np.uint8)
 
         # Calculate CoP
-        pressureSum = rawFrameL.sum()
-        x_grid, y_grid = np.indices(rawFrameL.shape)
-        CoP_pixel = (int((rawFrameL * x_grid).sum() / pressureSum), int((rawFrameL * y_grid).sum() / pressureSum))
+        pressureSum = rawFrame.sum()
+        x_grid, y_grid = np.indices(rawFrame.shape)
+        CoP_pixel = (int((rawFrame * x_grid).sum() / pressureSum), int((rawFrame * y_grid).sum() / pressureSum))
         CoP_cm = (CoP_pixel[0]*pixelXLength,CoP_pixel[1]*pixelYLength)
 
         # Calculate BoS
-        binaryMask = (rawFrameL > 80).astype(np.uint8) * 255
+        binaryMask = (rawFrame > 80).astype(np.uint8) * 255
         contours, _ = cv2.findContours(binaryMask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         minDistCoP2BoS = None
         distancesCoP2BoS = [] 
@@ -71,7 +72,7 @@ while True:
                 B = x_1 - x_2
                 C = x_2*y_1-x_1*y_2
 
-                distancesCoP2BoS.append(np.abs(A*CoP_cm[0]+B*CoP_cm[1]+C)/(np.sqrt(np.pow(A,2)+np.pow(B,2))))
+                distancesCoP2BoS.append(np.abs(A*CoP_cm[0]+B*CoP_cm[1]+C)/(np.sqrt(A**2+B**2)))
             if len(distancesCoP2BoS) > 0:
                 minDistCoP2BoS = np.min(distancesCoP2BoS)
         print(f"distances:{distancesCoP2BoS}")
@@ -81,9 +82,9 @@ while True:
         displayFrame[CoP_pixel[0]][CoP_pixel[1]] = 255
 
         displayFrame = cv2.resize(displayFrame, (3*224, 2*224)) #resize
-        rawFrameL = cv2.resize(rawFrameL/255, (3*224, 2*224)) #resize
+        rawFrame = cv2.resize(rawFrame/255, (3*224, 2*224)) #resize
         cv2.imshow('displayFrame', displayFrame)
-        cv2.imshow('rawFrameL', rawFrameL)
+        cv2.imshow('rawFrame', rawFrame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
