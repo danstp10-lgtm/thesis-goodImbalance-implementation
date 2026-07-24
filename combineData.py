@@ -1,59 +1,52 @@
-import Xsens2pythonRTstream
+import XsensUDPListener
 import CoP2BoSDistance
 
-host = '127.0.0.1'
-port = 9764
-packetLength = 2000
-lastReceived = None
-lastMessageType = None
-rows, columns, betweenHandDistance = 27, 19, 15
+rows, columns, between_hand_distance = 27, 19, 15
 # spacing 8,6mm
 pixelXLength=0.8
 pixelYLength=0.6
 
-# Listen to NVM network streamer
-s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-s.bind((host, port))
-data, addr = s.recvfrom(8*packetLength)
+if name == "__main__":
+    # Connect to Patches
+    TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
+    TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
+    MVN = XsensUDPListener(host="127.0.0.1", port=9764)
 
-# Connect to Patches
-TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
-TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
+    cached_raw_frame = np.zeros(
+        (rows, columns * 2 + between_hand_distance), dtype=np.uint8
+    )
 
-while data:
-    data = s.recv(8*packetLength)
-    message = [data,host]
-    pos, ori, lastReceived, timeCode, newPacketFlag, lastMessageType = parse_position_packet(data,lastReceived, lastMessageType)  
-    # if lastMessageType == 24:
-    #     print(f"CoM position: {pos}")
-    # elif lastMessageType == 2:
-    #     print(f"Segment position: {pos}")
-s.close()
+    print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
 
-while True:
-    if TSP_L.frame_available and TSP_R.frame_available:
-        rawFrameL, rawFrameR=getCleanFrames(TSP_L,TSP_R)
+    while True:
+        if MVN.new_data_available:
+            xsens_data=get_latest_data()
 
-        # add empty space between hands
-        padding = np.zeros((rows,betweenHandDistance))
-        rawFrame = np.concatenate([rawFrameL, padding,rawFrameR], axis=1)
+        if TSP_L.frame_available and TSP_R.frame_available:
+            raw_frame_L, raw_frame_R = get_clean_frames(TSP_L,TSP_R)
 
-        displayFrame = np.zeros(rawFrame.shape, np.uint8)
+            # add empty space between hands
+            padding = np.zeros((rows,between_hand_distance))
+            cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
 
-        # Calculate CoP
-        CoP_pixel,CoP_cm=calculateCoP(rawFrame)
+            display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
 
-        # Calculate BoS
-        minDistCoP2BoS = calculateMinDistCoP2BoS(rawFrame,displayFrame,CoP_cm)
+            # Calculate CoP
+            CoP_pixel,CoP_cm=calculate_CoP(cached_raw_frame)
 
-        # Add CoP_pixel to display
-        displayFrame[CoP_pixel[0]][CoP_pixel[1]] = 255
+            # Calculate BoS
+            min_dist_CoP2BoS = calculate_min_dist_CoP2BoS(cached_raw_frame,display_frame,CoP_cm)
 
-        displayFrame = cv2.resize(displayFrame, (3*224, 2*224)) #resize
-        rawFrame = cv2.resize(rawFrame/255, (3*224, 2*224)) #resize
-        cv2.imshow('displayFrame', displayFrame)
-        cv2.imshow('rawFrame', rawFrame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-cv2.destroyAllWindows()
+            if cached_raw_frame.sum()>0:
+                cv2.circle(
+                    display_frame,
+                    (CoP_pixel[1], CoP_pixel[0]),
+                    radius=1,
+                    color=(0, 0, 255),
+                    thickness=-1,
+                )
+            
+            # latest Xsens data
+            CoM = xsens_data["com"]
+            hand_segments = xsens_data["hand_segments"]
+            timecode = xsens_data["timecode"]
