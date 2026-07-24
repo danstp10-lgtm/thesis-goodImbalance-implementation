@@ -29,6 +29,10 @@ class XsensUDPListener:
     def _listen_loop(self):
         last_recieved = None
         last_message_type = None
+        last_CoM_readings = [0,0]
+        g = 9.81
+        l = 1.78
+        w_0 = np.sqrt(g/l)
 
         while self._running:
             try:
@@ -41,7 +45,17 @@ class XsensUDPListener:
                         self.latest_timecode = timecode
                         if last_message_type == 24:
                             print(f"CoM position: {pos}")
-                            self.latest_com = pos
+                            self.latest_com = [pos[0],pos[1]] # get x and y axis coordinates
+                            
+                            # Calculate XCoM
+                            # Get velocity from derivative
+                            dt = timecode - self.latest_timecode
+                            displacement = np.diff(self.latest_com-last_CoM_readings, axis=0)
+                            velocity_vectors = displacement / dt
+                            latest_velocity = np.linalg.norm(velocity_vectors)
+                            
+                            XCoM = self.latest_com + latest_velocity/w_0
+
                         elif last_message_type == 2:
                             print(f"Segmen_t position: {pos}")
                             self.latest_segments = pos
