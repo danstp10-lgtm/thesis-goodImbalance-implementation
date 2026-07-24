@@ -37,13 +37,14 @@ class XsensUDPListener:
                 pos, ori, last_received, timecode, new_packet_flag, last_message_type = self._p(data,last_received, last_message_type)  
                 if new_packet_flag:
                     with self._lock:
-                        selfT = timecode
+                        self.latest_timecode = timecode
                         if last_message_type == 24:
                             print(f"CoM position: {pos}")
                             self.latest_com = pos
-                        elif last_mess_sge_type == 2:
+                        elif last_message_type == 2:
                             print(f"Segmen_t position: {pos}")
-                            self.lat_dstS_agments = pos
+                            self.latest_segments = pos
+                        self.new_data_available = True
             except Exception as e:
                 time.sleep(0.001)
 
