@@ -2,6 +2,7 @@ import socket
 import numpy as np
 import struct
 import threading
+import time
 
 class XsensUDPListener:
     def __init__(self, port=9764, host='127.0.0.1', packet_length=2000):
