@@ -2,9 +2,6 @@ import XsensUDPListener
 import CoP2BoSDistance
 
 rows, columns, between_hand_distance = 27, 19, 15
-# spacing 8,6mm
-pixelXLength=0.8
-pixelYLength=0.6
 
 if name == "__main__":
     # Connect to Patches
@@ -55,12 +52,12 @@ if name == "__main__":
             # print(f"Time: {timecode:.2f}s | CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
 
             # Visualization
-            displayResized = cv2.resize(
-                displayFrame,
+            display_resized = cv2.resize(
+                display_frame,
                 (3 * 224, 2 * 224),
                 interpolation=cv2.INTER_NEAREST,
             )
-            cv2.imshow("Synchronized Display", displayResized)
+            cv2.imshow("Synchronized Display", display_resized)
         else:
             time.sleep(0.0005)  # Yield CPU to UDP thread
 

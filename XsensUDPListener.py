@@ -21,11 +21,11 @@ class XsensUDPListener:
         self.socket.bind((host, port))
 
         self.thread = threading.Thread(
-            target=self._listenLoop(),daemon=True
+            target=self._listen_loop(),daemon=True
         )
         self.thread.start()
 
-    def _listenLoop(self):
+    def _listen_loop(self):
         last_recieved = None
         last_message_type = None
 
