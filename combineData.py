@@ -50,3 +50,21 @@ if name == "__main__":
             CoM = xsens_data["com"]
             hand_segments = xsens_data["hand_segments"]
             timecode = xsens_data["timecode"]
+
+            # Output synchronized packet info
+            # print(f"Time: {timecode:.2f}s | CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
+
+            # Visualization
+            displayResized = cv2.resize(
+                displayFrame,
+                (3 * 224, 2 * 224),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            cv2.imshow("Synchronized Display", displayResized)
+        else:
+            time.sleep(0.0005)  # Yield CPU to UDP thread
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cv2.destroyAllWindows()
