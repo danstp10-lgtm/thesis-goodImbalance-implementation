@@ -5,16 +5,22 @@ import threading
 import time
 
 class XsensUDPListener:
-    def __init__(self, port=9764, host='127.0.0.1', packet_length=2000):
+    def __init__(self, port=9764, host='127.0.0.1', packet_length=2000, g = 9.81, l = 0.7):
         self.host=host
         self.port=port
         self.packet_length=packet_length
 
         self.latest_com=None
         self.latest_xcom=None
+        self.latest_com_vel = np.zeros(2)
         self.latest_segments=None # maybe rename to hands later if used for coord sync
         self.latest_timecode=0.0
         self.new_data_available=False
+
+        # For XCoM calc
+        self.omega_0 = np.sqrt(g/l)
+        self._prev_com = None
+        self._prev_timecode = None
 
         self._lock = threading.Lock()
         self._running = True
@@ -31,9 +37,6 @@ class XsensUDPListener:
         last_recieved = None
         last_message_type = None
         last_CoM_readings = [0,0]
-        g = 9.81
-        l = 1.78
-        w_0 = np.sqrt(g/l)
 
         while self._running:
             try:
@@ -49,13 +52,18 @@ class XsensUDPListener:
                             self.latest_com = [pos[0],pos[1]] # get x and y axis coordinates
                             
                             # Calculate XCoM
-                            # Get velocity from derivative
-                            dt = timecode - self.latest_timecode
-                            displacement = np.diff(self.latest_com-last_CoM_readings, axis=0)
-                            velocity_vectors = displacement / dt
-                            latest_velocity = np.linalg.norm(velocity_vectors)
-                            
-                            self.latest_xcom = self.latest_com + latest_velocity/w_0
+                            if (self._prev_com is not None
+                                and self._prev_timecode is not None):
+                                dt = timecode - self._prev_timecode
+                                if dt > 0: # Ensure valid time step to prevent division by zero
+                                    self.latest_com_vel = (self.latest_com - self._prev_com) / dt
+                                    self.latest_xcom = (self.latest_com + (self.latest_com_vel / self.omega_0))
+                            else:
+                                self.latest_xcom = self.latest_com.copy()
+
+                            # Cache history for differentiation
+                            self._prev_com = self.latest_com.copy()
+                            self._prev_timecode = timecode
 
                         elif last_message_type == 2:
                             print(f"Segmen_t position: {pos}")
