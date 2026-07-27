@@ -39,7 +39,7 @@ class XsensUDPListener:
                 data, _ = s.recvfrom(8*packet_length)
                 if not data:
                     continue
-                pos, ori, last_received, timecode, new_packet_flag, last_message_type = self._p(data,last_received, last_message_type)  
+                pos, ori, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data,last_received, last_message_type)  
                 if new_packet_flag:
                     with self._lock:
                         self.latest_timecode = timecode
@@ -149,7 +149,7 @@ class XsensUDPListener:
         while data:
             data = s.recv(8*packet_length)
             message = [data,host]
-            pos, ori, last_received, timecode, new_packet_flag, last_message_type = MVN._p(data,last_received, last_message_type)  
+            pos, ori, last_received, timecode, new_packet_flag, last_message_type = MVN.packet_packet(data,last_received, last_message_type)  
             if last_message_type == 24:
                 print(f"CoM position: {pos}")
             elif last_message_type == 2:
