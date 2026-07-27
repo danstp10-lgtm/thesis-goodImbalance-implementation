@@ -11,6 +11,7 @@ class XsensUDPListener:
         self.packet_length=packet_length
 
         self.latest_com=None
+        self.latest_xcom=None
         self.latest_segments=None # maybe rename to hands later if used for coord sync
         self.latest_timecode=0.0
         self.new_data_available=False
@@ -54,7 +55,7 @@ class XsensUDPListener:
                             velocity_vectors = displacement / dt
                             latest_velocity = np.linalg.norm(velocity_vectors)
                             
-                            XCoM = self.latest_com + latest_velocity/w_0
+                            self.latest_xcom = self.latest_com + latest_velocity/w_0
 
                         elif last_message_type == 2:
                             print(f"Segmen_t position: {pos}")
@@ -68,6 +69,7 @@ class XsensUDPListener:
             self.new_data_available=False
             return {
                 "com":self.latest_com,
+                "xcom":self.latest_xcom,
                 "hand_segmen_ss":self.latest_segments,
                 "timecode":self.latest_timecode
            }

@@ -49,6 +49,7 @@ if name == "__main__":
                 
                 # latest Xsens data
                 CoM = xsens_data["com"]
+                XCoM = xsens_data["xcom"]
                 hand_segments = xsens_data["hand_segments"]
                 timecode = xsens_data["timecode"]
 
