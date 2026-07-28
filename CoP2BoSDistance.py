@@ -10,7 +10,7 @@ from scipy.spatial import ConvexHull
 
 from support_functions import *
 
-rows, columns, betweenHandDistance = 27, 19, 15
+rows, columns, between_hand_distance = 27, 19, 15
 # spacing 8,6mm
 pixel_X_length=0.8
 pixel_Y_length=0.6
@@ -60,7 +60,7 @@ def main():
             raw_frame_L, raw_frame_R=get_raw_frames(TSP_L,TSP_R)
 
             # add empty space between hands
-            padding = np.zeros((rows,betweenHandDistance))
+            padding = np.zeros((rows,between_hand_distance))
             raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
 
             display_frame = np.zeros(raw_frame.shape, np.uint8)
