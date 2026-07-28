@@ -29,27 +29,27 @@ class XsensUDPListener:
         self.socket.bind((host, port))
 
         self.thread = threading.Thread(
-            target=self._listen_loop(),daemon=True
+            target=self._listen_loop,daemon=True
         )
         self.thread.start()
 
     def _listen_loop(self):
-        last_recieved = None
+        last_received = None
         last_message_type = None
         last_CoM_readings = [0,0]
 
         while self._running:
-            try:
-                data, _ = s.recvfrom(8*packet_length)
+            # try:
+                data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
-                pos, ori, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data,last_received, last_message_type)  
+                pos, ori, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data, last_received, last_message_type)  
                 if new_packet_flag:
                     with self._lock:
                         self.latest_timecode = timecode
                         if last_message_type == 24:
-                            print(f"CoM position: {pos}")
-                            self.latest_com = [pos[0],pos[1]] # get x and y axis coordinates
+                            # print(f"CoM position: {pos}")
+                            self.latest_com = np.asarray([pos[0],pos[1]]) # get x and y axis coordinates
                             
                             # Calculate XCoM
                             if (self._prev_com is not None
@@ -66,11 +66,12 @@ class XsensUDPListener:
                             self._prev_timecode = timecode
 
                         elif last_message_type == 2:
-                            print(f"Segmen_t position: {pos}")
+                            # print(f"Segmen_t position: {pos}")
                             self.latest_hand_segments = pos
                         self.new_data_available = True
-            except Exception as e:
-                time.sleep(0.001)
+            # except Exception as e:
+            #     print("ignoring you")
+            #     time.sleep(0.001)
 
     def get_latest_data(self):
         with self._lock:
@@ -82,7 +83,7 @@ class XsensUDPListener:
                 "timecode":self.latest_timecode
            }
 
-    def parse_packet(message, last_received, last_message_type):
+    def parse_packet(self, message, last_received, last_message_type):
         
         # Header
         if not isinstance(message, (bytes, bytearray)):
@@ -90,7 +91,7 @@ class XsensUDPListener:
             
         message_id = message[0:6].decode('ascii', errors='ignore')
         try:
-            message_type = int(i[4:6])
+            message_type = int(message_id[4:6])
         except ValueError:
             message_type = 0
                 
@@ -142,7 +143,7 @@ class XsensUDPListener:
         else:
             new_packet_flag = 1
 
-        # print(f"i: {i}\n"
+        # print(f"i: {message_id}\n"
         #     f"message_type: {message_type}\n"
         #     f"sample_counter: {sample_counter}\n"
         #     f"datagram_counter: {datagram_counter}\n"
@@ -152,18 +153,35 @@ class XsensUDPListener:
 
         return pos, ori, sample_counter, timecode, new_packet_flag, message_type
 
-    def main():
-        MVN = XsensUDPListener()
-        data = MVN.get_latest_data()
-        
-        while data:
-            data = s.recv(8*packet_length)
-            message = [data,host]
-            pos, ori, last_received, timecode, new_packet_flag, last_message_type = MVN.packet_packet(data,last_received, last_message_type)  
-            if last_message_type == 24:
-                print(f"CoM position: {pos}")
-            elif last_message_type == 2:
-                print(f"Segment position: {pos}")
-        s.close()
+    def close(self):
+            """Gracefully closes the socket and stops the UDP listener thread."""
+            self._running = False
+            try:
+                self.socket.close()
+            except Exception:
+                pass
+
+            if self.thread.is_alive():
+                self.thread.join(timeout=1.0)
+            print("Xsens UDP Listener closed.")
+
+def main():
+    MVN = XsensUDPListener(host="127.0.0.1", port=9764)
+    print("Listening for Xsens UDP stream...")
+
+    try:
+        while True:
+            new_data = MVN.get_latest_data()
+            print(new_data)
+            time.sleep(0.005)
+
+    except KeyboardInterrupt:
+        print("Stopping...")
+    finally:
+        MVN.close()
+
+
+if __name__ == "__main__":
+    main()
 
         
