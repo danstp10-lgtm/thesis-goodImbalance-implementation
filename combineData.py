@@ -1,11 +1,13 @@
-import XsensUDPListener
-import CoP2BoSDistance
-import FileSaver
+from XsensUDPListener import XsensUDPListener 
+import CoP2BoSDistance 
+from FileSaver import FileSaver
 import time
+from support_functions import *
+import cv2
 
 rows, columns, between_patch_distance = 27, 19, 15
 
-if name == "__main__":
+if __name__ == "__main__":
     # Connect to Patches
     TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
     TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
@@ -22,18 +24,21 @@ if name == "__main__":
         while True:
             if MVN.new_data_available:
                 # latest Xsens data
-                xsens_data=get_latest_data()
+                xsens_data=MVN.get_latest_data()
+                print(f"getting data{xsens_data}")
 
                 if TSP_L.frame_available and TSP_R.frame_available:
                     xsens_frame_CoM = xsens_data["com"]
-                    XCoM = xsens_data["xcom"]
+                    xsens_frame_XCoM = xsens_data["xcom"]
                     hand_segments = xsens_data["hand_segments"]
                     timecode = xsens_data["timecode"]
 
                     # Sync coordinate frames
-                    left_hand = hand_segments[0]
-                    right_hand = hand_segments[1]
-                    TSP_frame_CoM = xsens_frame_CoM - left_hand + (0,round(rows*0.6/2))
+                    left_hand = hand_segments[0].reshape(-1, 2)
+                    right_hand = hand_segments[1].reshape(-1, 2)
+                    print(left_hand)
+                    print(xsens_frame_CoM)
+                    TSP_frame_XCoM = xsens_frame_CoM - left_hand + (0,round(rows*0.6/2))
                     
                     # Raw TSP data
                     raw_frame_L, raw_frame_R = get_clean_frames(TSP_L,TSP_R)
@@ -67,12 +72,12 @@ if name == "__main__":
                             C = x_2*y_1-x_1*y_2
                             
                             distances_CoP2BoS.append(np.abs(A*CoP_cm[0]+B*CoP_cm[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
-                            distances_XCoM2BoS.append(np.abs(A*TSP_frame_CoM[0]+B*TSP_frame_CoM[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
+                            distances_XCoM2BoS.append(np.abs(A*TSP_frame_XCoM[0]+B*TSP_frame_XCoM[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
                         if len(distances_CoP2BoS) > 0:
                             min_dist_CoP2BoS = np.min(distances_CoP2BoS)
                             min_dist_XCoM2BoS = np.min(distances_XCoM2BoS)
-                        print(f"distances:{distances_CoP2BoS}")
-                        print(f"minimum:{min_dist_CoP2BoS}")
+                        # print(f"distances:{distances_CoP2BoS}")
+                        # print(f"minimum:{min_dist_CoP2BoS}")
 
                     # Show CoP pixel on display
                     if cached_raw_frame.sum()>0:
@@ -85,7 +90,7 @@ if name == "__main__":
                         )
                     
                     # Output synchronized packet info
-                    # print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
+                    print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
 
                     # save raw complete frame to file
                     saver.save(cached_raw_frame, timecode)
@@ -97,11 +102,13 @@ if name == "__main__":
                         interpolation=cv2.INTER_NEAREST,
                     )
                     cv2.imshow("Synchronized Display", display_resized)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
             else:
                 time.sleep(0.0005)  # Yield CPU to UDP thread
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+            
     finally:
         saver.close()
+        MVN.close()
         cv2.destroyAllWindows()
