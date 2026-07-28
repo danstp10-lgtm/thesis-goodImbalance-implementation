@@ -13,7 +13,7 @@ class XsensUDPListener:
         self.latest_com=None
         self.latest_xcom=None
         self.latest_com_vel = np.zeros(2)
-        self.latest_segments=None # maybe rename to hands later if used for coord sync
+        self.latest_hand_segments=None # maybe rename to hands later if used for coord sync
         self.latest_timecode=0.0
         self.new_data_available=False
 
@@ -67,7 +67,7 @@ class XsensUDPListener:
 
                         elif last_message_type == 2:
                             print(f"Segmen_t position: {pos}")
-                            self.latest_segments = pos
+                            self.latest_hand_segments = pos
                         self.new_data_available = True
             except Exception as e:
                 time.sleep(0.001)
@@ -78,7 +78,7 @@ class XsensUDPListener:
             return {
                 "com":self.latest_com,
                 "xcom":self.latest_xcom,
-                "hand_segmen_ss":self.latest_segments,
+                "hand_segments":self.latest_hand_segments,
                 "timecode":self.latest_timecode
            }
 
