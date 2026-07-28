@@ -30,8 +30,7 @@ if name == "__main__":
                 hand_segments = xsens_data["hand_segments"]
                 timecode = xsens_data["timecode"]
 
-                # Output synchronized packet info
-                # print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
+                
 
                 # Sync coordinate frames
                 left_hand = hand_segments[0]
@@ -77,6 +76,7 @@ if name == "__main__":
                     print(f"distances:{distances_CoP2BoS}")
                     print(f"minimum:{min_dist_CoP2BoS}")
 
+                # Show CoP pixel on display
                 if cached_raw_frame.sum()>0:
                     cv2.circle(
                         display_frame,
@@ -86,10 +86,8 @@ if name == "__main__":
                         thickness=-1,
                     )
                 
-                
-
-
-
+                # Output synchronized packet info
+                # print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
 
                 # save raw complete frame to file
                 saver.save(cached_raw_frame, timecode)
