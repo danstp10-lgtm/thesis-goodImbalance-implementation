@@ -3,7 +3,7 @@ import CoP2BoSDistance
 import FileSaver
 import time
 
-rows, columns, between_hand_distance = 27, 19, 15
+rows, columns, between_patch_distance = 27, 19, 15
 
 if name == "__main__":
     # Connect to Patches
@@ -13,7 +13,7 @@ if name == "__main__":
     saver = FileSaver(output_dir="session_data")
 
     cached_raw_frame = np.zeros(
-        (rows, columns * 2 + between_hand_distance), dtype=np.uint8
+        (rows, columns * 2 + between_patch_distance), dtype=np.uint8
     )
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
@@ -24,10 +24,28 @@ if name == "__main__":
                 xsens_data=get_latest_data()
 
             if TSP_L.frame_available and TSP_R.frame_available:
+                # latest Xsens data
+                xsens_frame_CoM = xsens_data["com"]
+                XCoM = xsens_data["xcom"]
+                hand_segments = xsens_data["hand_segments"]
+                timecode = xsens_data["timecode"]
+
+                # Output synchronized packet info
+                # print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
+
+                # Sync coordinate frames
+                left_hand = hand_segments[0]
+                right_hand = hand_segments[1]
+                TSP_frame_CoM = xsens_frame_CoM - left_hand
+                
+                # Raw TSP data
                 raw_frame_L, raw_frame_R = get_clean_frames(TSP_L,TSP_R)
 
+                # determine between patch space
+                between_patch_distance = round(np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2)) - 19*0.8)
+
                 # add empty space between hands
-                padding = np.zeros((rows,between_hand_distance))
+                padding = np.zeros((rows,between_patch_distance))
                 cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
 
                 display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
@@ -36,7 +54,28 @@ if name == "__main__":
                 CoP_pixel,CoP_cm=calculate_CoP(cached_raw_frame)
 
                 # Calculate BoS
-                min_dist_CoP2BoS = calculate_min_dist_CoP2BoS(cached_raw_frame,display_frame,CoP_cm)
+                BoS_cm = calculate_BoS(cached_raw_frame,display_frame)
+                
+                # Calculate minimum distance of CoP and CoM to BoS boundaries in cm
+                if BoS_cm:
+                    for i in range(len(BoS_cm)):
+                        # \(A = y_2 - y_1\)\(B = x_1 - x_2\)\(C = (x_2 \times y_1) - (x_1 \times y_2)\)
+                        j=i+1
+                        if j>=len(BoS_cm):
+                            j=0
+                        x_1, x_2 = BoS_cm[i][0],BoS_cm[j][0]
+                        y_1, y_2 = BoS_cm[i][1],BoS_cm[j][1]
+                        A = y_2 - y_1
+                        B = x_1 - x_2
+                        C = x_2*y_1-x_1*y_2
+                        
+                        distances_CoP2BoS.append(np.abs(A*CoP_cm[0]+B*CoP_cm[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
+                        distances_XCoM2BoS.append(np.abs(A*TSP_frame_CoM[0]+B*TSP_frame_CoM[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
+                    if len(distances_CoP2BoS) > 0:
+                        min_dist_CoP2BoS = np.min(distances_CoP2BoS)
+                        min_dist_XCoM2BoS = np.min(distances_XCoM2BoS)
+                    print(f"distances:{distances_CoP2BoS}")
+                    print(f"minimum:{min_dist_CoP2BoS}")
 
                 if cached_raw_frame.sum()>0:
                     cv2.circle(
@@ -47,14 +86,10 @@ if name == "__main__":
                         thickness=-1,
                     )
                 
-                # latest Xsens data
-                CoM = xsens_data["com"]
-                XCoM = xsens_data["xcom"]
-                hand_segments = xsens_data["hand_segments"]
-                timecode = xsens_data["timecode"]
+                
 
-                # Output synchronized packet info
-                # print(f"Time: {timecode:.2f}s | CoM: {com_pos} | CoP (cm): {CoP_cm} | MinDist: {minDistCoP2BoS}")
+
+
 
                 # save raw complete frame to file
                 saver.save(cached_raw_frame, timecode)
