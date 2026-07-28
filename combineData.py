@@ -30,8 +30,6 @@ if name == "__main__":
                 hand_segments = xsens_data["hand_segments"]
                 timecode = xsens_data["timecode"]
 
-                
-
                 # Sync coordinate frames
                 left_hand = hand_segments[0]
                 right_hand = hand_segments[1]
