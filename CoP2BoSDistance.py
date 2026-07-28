@@ -41,65 +41,47 @@ def calculate_CoP(raw_frame):
         CoP_pixel, CoP_cm = [0,0],[0,0]
     return CoP_pixel,CoP_cm
 
-def calculate_min_dist_CoP2BoS(raw_frame, display_frame,CoP_cm):
+def calculate_BoS(raw_frame, display_frame):
     binary_mask = (raw_frame > 80).astype(np.uint8) * 255
     contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    min_dist_CoP2BoS = None
-    distances_CoP2BoS = [] 
+    BoS_cm = None
     if contours:
         allPts = np.vstack(contours)
         BoS_pixel = cv2.convexHull(allPts).reshape(-1, 2)
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
         # Add BoS_pixel to display
         cv2.drawContours(display_frame, [BoS_pixel], -1, (255, 0, 0), 1)
-        
-        # Calculate minimum distance of CoP to BoS boundaries in cm
-        for i in range(len(BoS_cm)):
-            # \(A = y_2 - y_1\)\(B = x_1 - x_2\)\(C = (x_2 \times y_1) - (x_1 \times y_2)\)
-            j=i+1
-            if j>=len(BoS_cm):
-                j=0
-            x_1, x_2 = BoS_cm[i][0],BoS_cm[j][0]
-            y_1, y_2 = BoS_cm[i][1],BoS_cm[j][1]
-            A = y_2 - y_1
-            B = x_1 - x_2
-            C = x_2*y_1-x_1*y_2
 
-            distances_CoP2BoS.append(np.abs(A*CoP_cm[0]+B*CoP_cm[1]+C)/(np.sqrt(A**2+B**2)))
-        if len(distances_CoP2BoS) > 0:
-            min_dist_CoP2BoS = np.min(distances_CoP2BoS)
-    # print(f"distances:{distances_CoP2BoS}")
-    # print(f"minimum:{min_dist_CoP2BoS}")
+    return BoS_cm
 
-    return min_dist_CoP2BoS
+def main():
+    while True:
+        if TSP_L.frame_available and TSP_R.frame_available:
+            raw_frame_L, raw_frame_R=get_raw_frames(TSP_L,TSP_R)
 
-while True:
-    if TSP_L.frame_available and TSP_R.frame_available:
-        raw_frame_L, raw_frame_R=get_raw_frames(TSP_L,TSP_R)
+            # add empty space between hands
+            padding = np.zeros((rows,betweenHandDistance))
+            raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
 
-        # add empty space between hands
-        padding = np.zeros((rows,betweenHandDistance))
-        raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
+            display_frame = np.zeros(raw_frame.shape, np.uint8)
 
-        display_frame = np.zeros(raw_frame.shape, np.uint8)
+            # Calculate CoP
+            CoP_pixel,CoP_cm=calculate_CoP(raw_frame)
 
-        # Calculate CoP
-        CoP_pixel,CoP_cm=calculate_CoP(raw_frame)
+            # Calculate BoS
+            min_dist_CoP2BoS = calculate_min_dist_CoP2BoS(raw_frame,display_frame,CoP_cm)
 
-        # Calculate BoS
-        min_dist_CoP2BoS = calculate_min_dist_CoP2BoS(raw_frame,display_frame,CoP_cm)
+            # Add CoP_pixel to display
+            display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
 
-        # Add CoP_pixel to display
-        display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
+            display_frame = cv2.resize(display_frame, (3*224, 2*224)) #resize
+            raw_frame = cv2.resize(raw_frame/255, (3*224, 2*224)) #resize
+            cv2.imshow('display_frame', display_frame)
+            cv2.imshow('raw_frame', raw_frame)
 
-        display_frame = cv2.resize(display_frame, (3*224, 2*224)) #resize
-        raw_frame = cv2.resize(raw_frame/255, (3*224, 2*224)) #resize
-        cv2.imshow('display_frame', display_frame)
-        cv2.imshow('raw_frame', raw_frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-cv2.destroyAllWindows()
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    cv2.destroyAllWindows()
 
 
 
