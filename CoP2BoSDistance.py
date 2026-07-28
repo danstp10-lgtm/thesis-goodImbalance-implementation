@@ -10,14 +10,14 @@ from scipy.spatial import ConvexHull
 
 from support_functions import *
 
-rows, columns, between_hand_distance = 27, 19, 15
-# spacing 8,6mm
+# rows, columns, between_hand_distance = 27, 19, 15
+# # spacing 8,6mm
 pixel_X_length=0.8
 pixel_Y_length=0.6
 
-# Connect to Patches
-TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
-TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
+# # Connect to Patches
+# TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
+# TSP_R = TSPDecoder(port="COM10",rows=rows, columns=columns) # second touch patch
 
 def get_raw_frames(TSP_L,TSP_R):
     # Get raw pressure data
@@ -69,7 +69,7 @@ def main():
             CoP_pixel,CoP_cm=calculate_CoP(raw_frame)
 
             # Calculate BoS
-            min_dist_CoP2BoS = calculate_min_dist_CoP2BoS(raw_frame,display_frame,CoP_cm)
+            BoS = calculate_BoS(raw_frame,display_frame)
 
             # Add CoP_pixel to display
             display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
@@ -83,6 +83,7 @@ def main():
                 break
     cv2.destroyAllWindows()
 
-
+if __name__ == "__main__":
+    main()
 
         
