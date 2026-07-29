@@ -21,10 +21,10 @@ if __name__ == "__main__":
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
     xsens_frame_XCoM = None
-    latest_com_vel = np.zeros(2)
+    latest_CoM_vel = np.zeros(2)
     omega_0 = np.sqrt(9.81/0.6)
-    _prev_com = None
-    _prev_timecode = None
+    prev_com = None
+    prev_timecode = None
     try:
         while True:
             if MVN.new_data_available:
@@ -38,20 +38,18 @@ if __name__ == "__main__":
                     timecode = xsens_data["timecode"] / 1000.0
 
                     # Calculate XCoM
-                    if (_prev_com is not None
-                        and _prev_timecode is not None):
-                        dt = timecode - _prev_timecode
+                    if (prev_com is not None
+                        and prev_timecode is not None):
+                        dt = timecode - prev_timecode
                         if dt > 0: # Ensure valid time step to prevent division by zero
-                            latest_com_vel = (xsens_frame_CoM - _prev_com) / dt
-                            xsens_frame_XCoM = (xsens_frame_CoM + (latest_com_vel / omega_0))
+                            latest_CoM_vel = (xsens_frame_CoM - prev_com) / dt
+                            xsens_frame_XCoM = (xsens_frame_CoM + (latest_CoM_vel / omega_0))
                     else:
                         xsens_frame_XCoM = xsens_frame_CoM.copy()
 
-                    
-
                     # Cache history for differentiation
-                    _prev_com = xsens_frame_CoM.copy()
-                    _prev_timecode = timecode
+                    prev_com = xsens_frame_CoM.copy()
+                    prev_timecode = timecode
 
                     # Sync coordinate frames
                     left_hand = hand_segments[0][0:2] * 100
@@ -66,7 +64,7 @@ if __name__ == "__main__":
 
                     # determine between patch space
                     left_right_distance = np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2))
-                    between_patch_distance = round((left_right_distance - 2*19*0.8))
+                    between_patch_distance = round((left_right_distance - 2*19*0.8)/0.8)
                     # print(f"patch_dist:{between_patch_distance}")
 
                     # add empty space between hands
@@ -79,7 +77,7 @@ if __name__ == "__main__":
                     # Calculate BoS
                     BoS_cm = calculate_BoS(cached_raw_frame, display_frame)
                     
-                    # Calculate minimum distance of CoP and XCoM to BoS boundaries in cm
+                    # Calculate minimum distance of CoP and XCoM to BoS boundaries in cm, margin of stability b
                     distances_CoP2BoS = []
                     distances_XCoM2BoS = []
                     if BoS_cm:
