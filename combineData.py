@@ -32,10 +32,10 @@ if __name__ == "__main__":
                     xsens_data=MVN.get_latest_data()
                     # print(f"getting data{xsens_data}")
 
-                    xsens_frame_CoM = xsens_data["com"]
+                    xsens_frame_CoM = xsens_data["com"] * 100
                     # xsens_frame_XCoM = xsens_data["xcom"] * 100
                     hand_segments = xsens_data["hand_segments"]
-                    timecode = xsens_data["timecode"]
+                    timecode = xsens_data["timecode"] / 1000.0
 
                     # Calculate XCoM
                     if (_prev_com is not None
@@ -47,6 +47,8 @@ if __name__ == "__main__":
                     else:
                         xsens_frame_XCoM = xsens_frame_CoM.copy()
 
+                    
+
                     # Cache history for differentiation
                     _prev_com = xsens_frame_CoM.copy()
                     _prev_timecode = timecode
@@ -55,6 +57,8 @@ if __name__ == "__main__":
                     left_hand = hand_segments[0][0:2] * 100
                     right_hand = hand_segments[1][0:2] * 100
                     TSP_frame_XCoM = xsens_frame_XCoM - left_hand + (0,round(rows*0.6/2))
+
+                    print(f"xsens_frame_CoM:{xsens_frame_CoM} | xsens_frame_XCoM:{xsens_frame_XCoM} | TSP_frame_XCoM:{TSP_frame_XCoM}")
                     
                     # Raw TSP data
                     raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
@@ -63,19 +67,19 @@ if __name__ == "__main__":
                     # determine between patch space
                     left_right_distance = np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2))
                     between_patch_distance = round((left_right_distance - 2*19*0.8))
-                    print(f"patch_dist:{between_patch_distance}")
+                    # print(f"patch_dist:{between_patch_distance}")
 
                     # add empty space between hands
                     padding = np.zeros((rows,between_patch_distance))
                     cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
 
                     # Calculate CoP
-                    CoP_pixel,CoP_cm=calculate_CoP(cached_raw_frame)
+                    CoP_cm = calculate_CoP(cached_raw_frame, display_frame)
 
                     # Calculate BoS
                     BoS_cm = calculate_BoS(cached_raw_frame, display_frame)
                     
-                    # Calculate minimum distance of CoP and CoM to BoS boundaries in cm
+                    # Calculate minimum distance of CoP and XCoM to BoS boundaries in cm
                     distances_CoP2BoS = []
                     distances_XCoM2BoS = []
                     if BoS_cm:
@@ -98,20 +102,15 @@ if __name__ == "__main__":
                         # print(f"distances:{distances_CoP2BoS}")
                         # print(f"minimum:{min_dist_CoP2BoS}")
 
-                    # Show CoP pixel on display
-                    if cached_raw_frame.sum()>0:
-                        cv2.circle(
-                            display_frame,
-                            (CoP_pixel[1], CoP_pixel[0]),
-                            radius=1,
-                            color=(0, 0, 255),
-                            thickness=-1,
-                        )
-                    
-                    # Output synchronized packet info
-                    print(f"Time: {timecode}ms | TSP_frame_XCoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
+                    # Show XCoM pixel on display
+                    XCoM_pixel = [round(TSP_frame_XCoM[0]/0.8),round(TSP_frame_XCoM[1]/0.6)]
+                    if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
+                        display_frame[XCoM_pixel[0]][XCoM_pixel[1]] = 255
+                    else:
+                        print("XCoM out of bounds")
 
-                    # save raw complete frame to file
+                    # Output synchronized packet info
+                    # print(f"Time: {timecode}ms | TSP_frame_XCoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
                     saver.save(cached_raw_frame, timecode)
             else:
                 time.sleep(0.0005)  # Yield CPU to UDP thread
