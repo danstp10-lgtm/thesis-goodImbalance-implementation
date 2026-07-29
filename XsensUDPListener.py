@@ -5,7 +5,7 @@ import threading
 import time
 
 class XsensUDPListener:
-    def __init__(self, port=9764, host='127.0.0.1', packet_length=2000, g = 9.81, l = 0.7):
+    def __init__(self, port=9764, host='127.0.0.1', packet_length=2000, g = 9.81, l = 0.6):
         self.host=host
         self.port=port
         self.packet_length=packet_length
