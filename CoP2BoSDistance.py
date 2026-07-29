@@ -31,15 +31,16 @@ def get_raw_frames(TSP_L,TSP_R):
         raw_frame_R = cv2.fastNlMeansDenoising(raw_frame_R, h=10)
         return raw_frame_L, raw_frame_R
 
-def calculate_CoP(raw_frame):
+def calculate_CoP(raw_frame,display_frame):
     pressure_sum = raw_frame.sum()
     if pressure_sum>0:
         x_grid, y_grid = np.indices(raw_frame.shape)
         CoP_pixel = (int((raw_frame * x_grid).sum() / pressure_sum), int((raw_frame * y_grid).sum() / pressure_sum))
+        display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
         CoP_cm = (CoP_pixel[0]*pixel_X_length,CoP_pixel[1]*pixel_Y_length)
     else:
-        CoP_pixel, CoP_cm = [0,0],[0,0]
-    return CoP_pixel,CoP_cm
+       CoP_cm = [0,0]        
+    return CoP_cm
 
 def calculate_BoS(raw_frame, display_frame):
     binary_mask = (raw_frame > 80).astype(np.uint8) * 255
