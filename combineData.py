@@ -1,5 +1,5 @@
 from XsensUDPListener import XsensUDPListener 
-import CoP2BoSDistance 
+from CoP2BoSDistance import *
 from FileSaver import FileSaver
 import time
 from support_functions import *
@@ -17,6 +17,7 @@ if __name__ == "__main__":
     cached_raw_frame = np.zeros(
         (rows, columns * 2 + between_patch_distance), dtype=np.uint8
     )
+    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
 
@@ -25,32 +26,30 @@ if __name__ == "__main__":
             if MVN.new_data_available:
                 # latest Xsens data
                 xsens_data=MVN.get_latest_data()
-                print(f"getting data{xsens_data}")
+                # print(f"getting data{xsens_data}")
 
                 if TSP_L.frame_available and TSP_R.frame_available:
                     xsens_frame_CoM = xsens_data["com"]
-                    xsens_frame_XCoM = xsens_data["xcom"]
+                    xsens_frame_XCoM = xsens_data["xcom"] * 100
                     hand_segments = xsens_data["hand_segments"]
                     timecode = xsens_data["timecode"]
 
                     # Sync coordinate frames
-                    left_hand = hand_segments[0].reshape(-1, 2)
-                    right_hand = hand_segments[1].reshape(-1, 2)
-                    print(left_hand)
-                    print(xsens_frame_CoM)
-                    TSP_frame_XCoM = xsens_frame_CoM - left_hand + (0,round(rows*0.6/2))
+                    left_hand = hand_segments[0][0:2] * 100
+                    right_hand = hand_segments[1][0:2] * 100
+                    TSP_frame_XCoM = xsens_frame_XCoM - left_hand + (0,round(rows*0.6/2))
                     
                     # Raw TSP data
-                    raw_frame_L, raw_frame_R = get_clean_frames(TSP_L,TSP_R)
+                    raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
 
                     # determine between patch space
-                    between_patch_distance = round(np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2)) - 19*0.8)
+                    left_right_distance = np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2))
+                    between_patch_distance = round((left_right_distance - 2*19*0.8))
+                    print(f"patch_dist:{between_patch_distance}")
 
                     # add empty space between hands
                     padding = np.zeros((rows,between_patch_distance))
                     cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
-
-                    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
 
                     # Calculate CoP
                     CoP_pixel,CoP_cm=calculate_CoP(cached_raw_frame)
@@ -59,6 +58,8 @@ if __name__ == "__main__":
                     BoS_cm = calculate_BoS(cached_raw_frame,display_frame)
                     
                     # Calculate minimum distance of CoP and CoM to BoS boundaries in cm
+                    distances_CoP2BoS = []
+                    distances_XCoM2BoS = []
                     if BoS_cm:
                         for i in range(len(BoS_cm)):
                             # \(A = y_2 - y_1\)\(B = x_1 - x_2\)\(C = (x_2 \times y_1) - (x_1 \times y_2)\)
@@ -90,24 +91,22 @@ if __name__ == "__main__":
                         )
                     
                     # Output synchronized packet info
-                    print(f"Time: {timecode:.2f}s | xsens_frame_CoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
+                    print(f"Time: {timecode:.2f}s | TSP_frame_XCoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
 
                     # save raw complete frame to file
                     saver.save(cached_raw_frame, timecode)
-
-                    # Visualization
-                    display_resized = cv2.resize(
-                        display_frame,
-                        (3 * 224, 2 * 224),
-                        interpolation=cv2.INTER_NEAREST,
-                    )
-                    cv2.imshow("Synchronized Display", display_resized)
-                    if cv2.waitKey(1) & 0xFF == ord("q"):
-                        break
             else:
                 time.sleep(0.0005)  # Yield CPU to UDP thread
-
             
+            # Visualization
+            display_resized = cv2.resize(
+                display_frame,
+                (3 * 224, 2 * 224),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            cv2.imshow("Synchronized Display", display_resized)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
     finally:
         saver.close()
         MVN.close()
