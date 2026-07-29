@@ -35,7 +35,7 @@ class FileSaver:
                 )
                 # save to file
                 np.savez_compressed(
-                    filename = filename,
+                    filename,
                     frame = frame,
                     timecode = timecode,
                     frame_id = frame_id,
