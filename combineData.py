@@ -20,19 +20,36 @@ if __name__ == "__main__":
     display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
-
+    xsens_frame_XCoM = None
+    latest_com_vel = np.zeros(2)
+    omega_0 = np.sqrt(9.81/0.6)
+    _prev_com = None
+    _prev_timecode = None
     try:
         while True:
             if MVN.new_data_available:
-                # latest Xsens data
-                xsens_data=MVN.get_latest_data()
-                # print(f"getting data{xsens_data}")
-
                 if TSP_L.frame_available and TSP_R.frame_available:
+                    xsens_data=MVN.get_latest_data()
+                    # print(f"getting data{xsens_data}")
+
                     xsens_frame_CoM = xsens_data["com"]
-                    xsens_frame_XCoM = xsens_data["xcom"] * 100
+                    # xsens_frame_XCoM = xsens_data["xcom"] * 100
                     hand_segments = xsens_data["hand_segments"]
                     timecode = xsens_data["timecode"]
+
+                    # Calculate XCoM
+                    if (_prev_com is not None
+                        and _prev_timecode is not None):
+                        dt = timecode - _prev_timecode
+                        if dt > 0: # Ensure valid time step to prevent division by zero
+                            latest_com_vel = (xsens_frame_CoM - _prev_com) / dt
+                            xsens_frame_XCoM = (xsens_frame_CoM + (latest_com_vel / omega_0))
+                    else:
+                        xsens_frame_XCoM = xsens_frame_CoM.copy()
+
+                    # Cache history for differentiation
+                    _prev_com = xsens_frame_CoM.copy()
+                    _prev_timecode = timecode
 
                     # Sync coordinate frames
                     left_hand = hand_segments[0][0:2] * 100
@@ -41,6 +58,7 @@ if __name__ == "__main__":
                     
                     # Raw TSP data
                     raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
+                    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
 
                     # determine between patch space
                     left_right_distance = np.sqrt(np.power(right_hand[0]-left_hand[0],2)+ np.power(right_hand[1]-left_hand[1],2))
@@ -55,7 +73,7 @@ if __name__ == "__main__":
                     CoP_pixel,CoP_cm=calculate_CoP(cached_raw_frame)
 
                     # Calculate BoS
-                    BoS_cm = calculate_BoS(cached_raw_frame,display_frame)
+                    BoS_cm = calculate_BoS(cached_raw_frame, display_frame)
                     
                     # Calculate minimum distance of CoP and CoM to BoS boundaries in cm
                     distances_CoP2BoS = []
@@ -91,7 +109,7 @@ if __name__ == "__main__":
                         )
                     
                     # Output synchronized packet info
-                    print(f"Time: {timecode:.2f}s | TSP_frame_XCoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
+                    print(f"Time: {timecode}ms | TSP_frame_XCoM: {TSP_frame_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
 
                     # save raw complete frame to file
                     saver.save(cached_raw_frame, timecode)
