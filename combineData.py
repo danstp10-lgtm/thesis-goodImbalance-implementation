@@ -57,7 +57,8 @@ if __name__ == "__main__":
                         velocity_CoM = np.zeros(2)
                         xsens_XCoM = xsens_CoM.copy()
                     
-                    print(f"time period: {time_sec}:{oldest_time}={dt} | velocity_CoM: {velocity_CoM} | XCoM: {xsens_XCoM}")
+                    # print(f"time period: {time_sec}:{oldest_time}={dt} | velocity_CoM: {velocity_CoM} | XCoM: {xsens_XCoM}")
+                    print(len(com_history))
                     com_history.clear()                  
 
                     # Sync coordinate frames
@@ -75,7 +76,7 @@ if __name__ == "__main__":
                     
                     # Raw TSP data
                     raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
-                    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
+                    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)                   
 
                     # determine between patch space
                     # left_hand = hand_segments[0][0:2] * 100
@@ -86,8 +87,8 @@ if __name__ == "__main__":
 
                     # add empty space between hands
                     padding = np.zeros((rows,between_patch_distance))
-                    cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
-
+                    cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1).astype(np.uint8)
+                    
                     # Calculate CoP
                     CoP_cm = calculate_CoP(cached_raw_frame, display_frame)
 
@@ -134,7 +135,13 @@ if __name__ == "__main__":
                 (3 * 224, 2 * 224),
                 interpolation=cv2.INTER_NEAREST,
             )
+            raw_resized = cv2.resize(
+                cached_raw_frame,
+                (3 * 224, 2 * 224),
+                interpolation=cv2.INTER_NEAREST,
+            )
             cv2.imshow("Synchronized Display", display_resized)
+            cv2.imshow("raw frame",raw_resized)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
