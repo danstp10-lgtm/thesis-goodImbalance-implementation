@@ -8,7 +8,7 @@ def get_Xsens2Vive_transforms(xsens_samples, vive_samples):
 
     # Bring both to origin
     X = xsens_samples - centroid_xsens
-    V = vie_samples - centroid_vive
+    V = vive_samples - centroid_vive
 
     # Compute the covariance matrix
     H = np.dot(X.T, V)
