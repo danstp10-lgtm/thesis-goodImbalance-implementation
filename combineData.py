@@ -40,7 +40,7 @@ if __name__ == "__main__":
                 com_history.append((time_sec, xsens_CoM))
 
                 if TSP_L.frame_available and TSP_R.frame_available:
-                    hand_segments = xsens_data["hand_segments"]
+                    hand_segments = xsens_data["segments"]
 
                     # Calculate XCoM, with smoothing
                     oldest_time, oldest_com = com_history[0]
