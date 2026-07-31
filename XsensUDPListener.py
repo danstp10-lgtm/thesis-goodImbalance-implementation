@@ -11,7 +11,7 @@ class XsensUDPListener:
         self.packet_length=packet_length
 
         self.latest_com=None
-        self.latest_hand_segments=None # maybe rename to hands later if used for coord sync
+        self.segments=None # maybe rename to hands later if used for coord sync
         self.latest_timecode=0.0
         self.new_data_available=False
 
@@ -46,7 +46,7 @@ class XsensUDPListener:
 
                         elif last_message_type == 2:
                             # print(f"Segmen_t position: {pos}")
-                            self.latest_hand_segments = pos
+                            self.segments = pos
                         self.new_data_available = True
             # except Exception as e:
             #     print("ignoring you")
@@ -57,7 +57,7 @@ class XsensUDPListener:
             self.new_data_available=False
             return {
                 "com":self.latest_com,
-                "hand_segments":self.latest_hand_segments,
+                "segments":self.segments,
                 "timecode":self.latest_timecode
            }
 
@@ -91,20 +91,15 @@ class XsensUDPListener:
         # Payload
         header_length = 24
         if message_type == 2: # Quaternion 23 main segment data
+            segments = [10,14] # choose which segments to send
             packet_size = 32 
             pos = np.zeros((2, 3))
             ori = np.zeros((2, 4))
-            # Left hand
-            start = header_length + packet_size*14 
-            floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
-            pos[0, :] = floats[0:3]
-            ori[0, :] = floats[3:7]
-            # Right hand
-            start = header_length + packet_size*10
-            floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
-            pos[1, :] = floats[0:3]
-            ori[1, :] = floats[3:7]
-
+            for s in range(segments):
+                start = header_length + packet_size*segments[s] 
+                floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
+                pos[s, :] = floats[0:3]
+                ori[s, :] = floats[3:7]
         elif message_type == 3: # Point Data, likely no Hand
             packet_size = 16
             pos = np.zeros((num_segments, 3))
