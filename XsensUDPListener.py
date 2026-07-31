@@ -45,7 +45,7 @@ class XsensUDPListener:
                             self.segments = pos
                         self.new_data_available = True
             except Exception as e:
-                print(e)
+                print(e.args)
                 time.sleep(0.001)
 
     def get_latest_data(self):
@@ -91,7 +91,7 @@ class XsensUDPListener:
             packet_size = 32 
             pos = np.zeros((2, 3))
             ori = np.zeros((2, 4))
-            for s in range(segments):
+            for s in range(len(segments)):
                 start = header_length + packet_size*segments[s] 
                 floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
                 pos[s, :] = floats[0:3]
