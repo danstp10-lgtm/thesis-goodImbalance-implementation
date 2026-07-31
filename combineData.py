@@ -1,5 +1,5 @@
 from XsensUDPListener import XsensUDPListener 
-from CoP2BoSDistance import *
+from TSP_utils import *
 from FileSaver import FileSaver
 import time
 from support_functions import *
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                         times = np.array([t for t, _ in com_history])
                         positions = np.array([pos for _, pos in com_history])
                         t_centered = times - times[0]
-                        slopes, _ = np.polyfit(t_centered, positions, deg=1)
+                        slopes, _ , _ = np.polyfit(t_centered, positions, deg=2)
                         velocity_CoM = slopes  
                         xsens_XCoM = xsens_CoM + (velocity_CoM / omega_0)
                     else:
