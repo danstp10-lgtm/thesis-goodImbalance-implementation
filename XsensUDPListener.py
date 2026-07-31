@@ -30,9 +30,8 @@ class XsensUDPListener:
         last_received = None
         last_message_type = None
         last_CoM_readings = [0,0]
-
         while self._running:
-            # try:
+            try:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
@@ -41,16 +40,13 @@ class XsensUDPListener:
                     with self._lock:
                         self.latest_timecode = timecode
                         if last_message_type == 24:
-                            # print(f"CoM position: {pos}")
                             self.latest_com = np.asarray([pos[0],pos[1]]) # get x and y axis coordinates
-
                         elif last_message_type == 2:
-                            # print(f"Segmen_t position: {pos}")
                             self.segments = pos
                         self.new_data_available = True
-            # except Exception as e:
-            #     print("ignoring you")
-            #     time.sleep(0.001)
+            except Exception as e:
+                print(e)
+                time.sleep(0.001)
 
     def get_latest_data(self):
         with self._lock:
