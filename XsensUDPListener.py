@@ -40,7 +40,7 @@ class XsensUDPListener:
                     with self._lock:
                         self.latest_timecode = timecode
                         if last_message_type == 24:
-                            self.latest_com = np.asarray([pos[0],pos[1]]) # get x and y axis coordinates
+                            self.latest_com = np.asarray([pos[0],pos[1],pos[2]]) # get x and y axis coordinates
                         elif last_message_type == 2:
                             self.segments = pos
                         self.new_data_available = True
@@ -87,7 +87,7 @@ class XsensUDPListener:
         # Payload
         header_length = 24
         if message_type == 2: # Quaternion 23 main segment data
-            segments = [10,14] # choose which segments to send
+            segments = [14] # choose which segments to send
             packet_size = 32 
             pos = np.zeros((2, 3))
             ori = np.zeros((2, 4))
