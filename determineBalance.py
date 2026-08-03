@@ -16,9 +16,9 @@ if __name__ == "__main__":
     TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
     TSP_R = TSPDecoder(port="COM9",rows=rows, columns=columns) # second touch patch
     MVN = XsensUDPListener(host="127.0.0.1", port=9764)
-    saver = FileSaver(output_dir="session_data")
+    saver = FileSaver(output_dir="session_data",frames_subdir="frames")
     v = triad_openvr.triad_openvr()
-    # v.print_discovered_objects()
+    v.print_discovered_objects()
     if "tracker_1" in v.devices:
         v.rename_device("tracker_1","body_tracker")
     # if "tracker_2" in v.devices:
@@ -51,8 +51,8 @@ if __name__ == "__main__":
                 if not calibrated:        
                     body_tracker = v.devices["body_tracker"].get_pose_euler()
                     if len(xsens_samples)==len(vive_samples)==300: # Collect 300 samples of one Vive and one Xsens tracker
-                        R, t, error = get_Xsens2Vive_transforms(xsens_samples, vive_samples)
-                        print(error)
+                        R, t, sim_error = get_Xsens2Vive_transforms(xsens_samples, vive_samples)
+                        print(f"similarity error:{sim_error}")
                         calibrated = True
                     elif body_tracker:
                         # print(f"xsens ({len(xsens_samples)}){xsens_samples} | vive ({len(vive_samples)}) : {body_tracker[0:3]}")
@@ -128,7 +128,11 @@ if __name__ == "__main__":
 
                         # Output synchronized packet info
                         # print(f"Time: {time_sec}s | TSP_XCoM: {TSP_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
-                        saver.save(cached_raw_frame, time_sec)
+                        
+                        # Save data
+                        saver.save_frame(cached_raw_frame, time_sec)
+                        saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
+                        saver.increment_frame_count()
             else:
                 time.sleep(0.0005)  # Yield CPU to UDP thread
             
