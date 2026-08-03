@@ -21,8 +21,8 @@ if __name__ == "__main__":
     v.print_discovered_objects()
     if "tracker_1" in v.devices:
         v.rename_device("tracker_1","body_tracker")
-    # if "tracker_2" in v.devices:
-        # v.rename_device("tracker_2","TSP_corner")
+    if "tracker_2" in v.devices:
+        v.rename_device("tracker_2","TSP_corner")
 
     cached_raw_frame = np.zeros(
         (rows, columns * 2 + between_patch_distance), dtype=np.uint8
@@ -35,8 +35,10 @@ if __name__ == "__main__":
     omega_0 = np.sqrt(9.81/0.6)
     com_history = deque()
     calibrated = False
-    vive_samples = np.empty((1,3))
-    xsens_samples = np.empty((1,3))
+    calibration_samples = 300
+    vive_samples = []
+    xsens_samples = []
+    ALPHA = 0.005 
 
     try:
         while True:
@@ -50,18 +52,23 @@ if __name__ == "__main__":
                 # Determine transformation parameters: R, t
                 if not calibrated:        
                     body_tracker = v.devices["body_tracker"].get_pose_euler()
-                    if len(xsens_samples)==len(vive_samples)==300: # Collect 300 samples of one Vive and one Xsens tracker
-                        R, t, sim_error = get_Xsens2Vive_transforms(xsens_samples, vive_samples)
+                    if len(xsens_samples)==len(vive_samples)==calibration_samples: # Collect 300 samples of one Vive and one Xsens tracker
+                        xsens_mat = np.array(xsens_samples)
+                        vive_mat = np.array(vive_samples)
+                        R, t, sim_error = get_Xsens2Vive_transforms(xsens_mat, vive_mat)
                         print(f"similarity error:{sim_error}")
                         calibrated = True
                     elif body_tracker:
                         # print(f"xsens ({len(xsens_samples)}){xsens_samples} | vive ({len(vive_samples)}) : {body_tracker[0:3]}")
-                        xsens_samples = np.vstack([xsens_samples, xsens_segments[0]])
-                        vive_samples = np.vstack([vive_samples, body_tracker[0:3]])
-
+                        xsens_samples.append(xsens_segments[0])
+                        vive_samples.append(body_tracker[0:3])
                 else:
-                    if TSP_L.frame_available and TSP_R.frame_available:
+                    # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body
+                    # xsens2vive_segments = (R @ xsens_segments[0]) + t
+                    # drift_error = body_tracker - xsens2vive_segments + sim_error
+                    # t += ALPHA * drift_error
 
+                    if TSP_L.frame_available and TSP_R.frame_available:
                         # Calculate XCoM, with smoothing
                         oldest_time, oldest_com = com_history[0]
                         dt = time_sec - oldest_time
@@ -81,8 +88,8 @@ if __name__ == "__main__":
 
                         # Transform Xsens to TSP data
                         TSP_XCoM = [0,0]
-                        # TSP_corner = v.devices["TSP_corner"].get_pose_euler()
-                        # TSP_XCoM = transform_Xsens2TSP(xsens_XCoM,R,t,TSP_corner[0:3],TSP_corner[3:6])
+                        TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m)
+                        TSP_XCoM = transform_Xsens2TSP(xsens_XCoM,R,t,TSP_corner[0:3, 3],TSP_corner[0:3, 0:3])
                         
                         # Raw TSP data
                         raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
@@ -118,20 +125,22 @@ if __name__ == "__main__":
                             if len(distances_CoP2BoS) > 0:
                                 min_dist_CoP2BoS = np.min(distances_CoP2BoS)
                                 min_dist_XCoM2BoS = np.min(distances_XCoM2BoS)
+                                saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
+
 
                         # Show XCoM pixel on display
-                        # XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
-                        # if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
-                        #     display_frame[XCoM_pixel[0]][XCoM_pixel[1]] = 255
-                        # else:
-                        #     print("XCoM out of bounds")
+                        XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
+                        if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
+                            display_frame[XCoM_pixel[0]][XCoM_pixel[1]] = 255
+                            print("XCoM in bounds")
+                        else:
+                            print("XCoM out of bounds")
 
                         # Output synchronized packet info
                         # print(f"Time: {time_sec}s | TSP_XCoM: {TSP_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
                         
                         # Save data
                         saver.save_frame(cached_raw_frame, time_sec)
-                        saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
                         saver.increment_frame_count()
             else:
                 time.sleep(0.0005)  # Yield CPU to UDP thread
