@@ -52,7 +52,7 @@ if __name__ == "__main__":
                 # Determine transformation parameters: R, t
                 if not calibrated:        
                     body_tracker = v.devices["body_tracker"].get_pose_euler()
-                    if len(xsens_samples)==len(vive_samples)==calibration_samples: # Collect 300 samples of one Vive and one Xsens tracker
+                    if len(xsens_samples)==len(vive_samples)==calibration_samples: # Collect n samples of one Vive and one Xsens tracker, at roughly the same place
                         xsens_mat = np.array(xsens_samples)
                         vive_mat = np.array(vive_samples)
                         R, t, sim_error = get_Xsens2Vive_transforms(xsens_mat, vive_mat)
@@ -63,8 +63,12 @@ if __name__ == "__main__":
                         xsens_samples.append(xsens_segments[0])
                         vive_samples.append(body_tracker[0:3])
                 else:
-                    # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body
-                    # xsens2vive_segments = (R @ xsens_segments[0]) + t
+                    # Show hand when over TSP
+                    xsens2vive_segments = (R @ xsens_segments[0]) + t
+                    if 0 < xsens2vive_segments[0] < display_frame.shape[0] and 0 < xsens2vive_segments[1] < display_frame.shape[1]:
+                            display_frame[xsens2vive_segments[0]][xsens2vive_segments[1]] = 255
+
+                    # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body        
                     # drift_error = body_tracker - xsens2vive_segments + sim_error
                     # t += ALPHA * drift_error
 
@@ -157,7 +161,7 @@ if __name__ == "__main__":
                 interpolation=cv2.INTER_NEAREST,
             )
             cv2.imshow("Synchronized Display", display_resized)
-            cv2.imshow("raw frame",raw_resized)
+            cv2.imshow("raw frame", raw_resized)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
