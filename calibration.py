@@ -41,7 +41,7 @@ def transform_Xsens2TSP(P_xsens, R_xv, t_xv, P_TSP, R_TSP):
     P_TSP - origin of TSP, marked by third Vive controller
     R_TSP - rotation of TSP, also get from Vive controller
     """
-    P_vive = (R_xv @ P_xsens) + t_xv # Xsens point to Vive Space
-    P_grid = R_TSP.T @ (P_vive - P_TSP) # Vive point to TSP Space
-    return P_grid
+    xsens_vive = (R_xv @ P_xsens) + t_xv # Xsens point to Vive Space
+    xsens_TSP = R_TSP.T @ (xsens_vive - P_TSP) # Vive point to TSP Space
+    return xsens_TSP
 
