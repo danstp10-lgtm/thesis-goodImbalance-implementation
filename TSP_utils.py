@@ -20,9 +20,7 @@ def get_raw_frames(TSP_L,TSP_R):
         raw_frame_R = TSP_R.readFrame().astype(np.uint8)
 
         # Denoising
-        # raw_frame_L = raw_frame_L[:,2:] # remove noise columns
         raw_frame_L = cv2.fastNlMeansDenoising(raw_frame_L, h=10)
-        # raw_frame_R = raw_frame_R[:, 2:]  # remove noise columns
         raw_frame_R = cv2.fastNlMeansDenoising(raw_frame_R, h=10)
         return raw_frame_L, raw_frame_R
 
