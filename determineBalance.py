@@ -38,7 +38,7 @@ if __name__ == "__main__":
     calibration_samples = 300
     vive_samples = []
     xsens_samples = []
-    ALPHA = 0.05 
+    ALPHA = 0.005 
     # M_swap = np.array([
     #     [0, 0, 1],  # Grid X gets Tracker Z
     #     [1, 0, 0],  # Grid Y gets Tracker X
