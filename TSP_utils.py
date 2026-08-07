@@ -6,6 +6,7 @@ from cv2 import drawContours
 import numpy as np
 import skimage
 from scipy.ndimage import binary_erosion
+from scipy.ndimage import median_filter
 from scipy.spatial import ConvexHull
 
 from support_functions import *
@@ -22,6 +23,8 @@ def get_raw_frames(TSP_L,TSP_R):
         # Denoising
         raw_frame_L = cv2.fastNlMeansDenoising(raw_frame_L, h=10)
         raw_frame_R = cv2.fastNlMeansDenoising(raw_frame_R, h=10)
+        # raw_frame_L = median_filter(raw_frame_L, size=4)
+        # raw_frame_R = median_filter(raw_frame_R, size=4)
         return raw_frame_L, raw_frame_R
 
 def calculate_CoP(raw_frame,display_frame):
