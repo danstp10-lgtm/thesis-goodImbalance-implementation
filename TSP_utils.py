@@ -15,6 +15,9 @@ from support_functions import *
 pixel_X_length=0.8
 pixel_Y_length=0.6
 
+COLOR_COP = (0, 0, 255)  # Bright Red
+COLOR_BOS = (255, 0, 0)  # Bright Blue
+
 def get_raw_frames(TSP_L,TSP_R):
     # Get raw pressure data
         raw_frame_L = TSP_L.readFrame().astype(np.uint8)
@@ -32,10 +35,11 @@ def calculate_CoP(raw_frame,display_frame):
     if pressure_sum>0:
         x_grid, y_grid = np.indices(raw_frame.shape)
         CoP_pixel = (int((raw_frame * x_grid).sum() / pressure_sum), int((raw_frame * y_grid).sum() / pressure_sum))
-        display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
+        # display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
+        cv2.circle(display_frame, (CoP_pixel[1],CoP_pixel[0]), radius=1, color=COLOR_COP, thickness=-1)
         CoP_cm = (CoP_pixel[0]*pixel_X_length,CoP_pixel[1]*pixel_Y_length)
     else:
-       CoP_cm = [0,0]        
+        CoP_cm = [0,0]        
     return CoP_cm
 
 def calculate_BoS(raw_frame, display_frame):
@@ -47,8 +51,8 @@ def calculate_BoS(raw_frame, display_frame):
         BoS_pixel = cv2.convexHull(allPts).reshape(-1, 2)
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
         # Add BoS_pixel to display
-        cv2.drawContours(display_frame, [BoS_pixel], -1, (255, 0, 0), 1)
-
+        cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
+        # cv2.polylines(display_frame, [BoS_pixel], isClosed=True, color=(0, 255, 255), thickness=1)
     return BoS_cm
 
 def main():
