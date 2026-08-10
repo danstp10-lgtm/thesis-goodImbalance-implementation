@@ -27,11 +27,10 @@ if __name__ == "__main__":
     cached_raw_frame = np.zeros(
         (rows, columns * 2 + between_patch_distance), dtype=np.uint8
     )
-    # display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
-    display_frame = cv2.cvtColor(cached_raw_frame, cv2.COLOR_GRAY2BGR)
+    display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
     COLOR_COM = (0, 255, 0)  # Bright Green
     COLOR_XCOM = (0, 255, 255)  # Bright Yellow
-    COLOR_HAND = (255, 255, 255)  # Bright Yellow
+    COLOR_HAND = (255, 255, 255)  # Bright White
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
 
@@ -42,7 +41,7 @@ if __name__ == "__main__":
     calibration_samples = 300
     vive_samples = []
     xsens_samples = []
-    ALPHA = 0.005 
+    ALPHA = 0.01 
     M_swap = np.array([
         [0, 0, 1],  # Grid X gets Tracker Z
         [1, 0, 0],  # Grid Y gets Tracker X
@@ -74,11 +73,12 @@ if __name__ == "__main__":
                     # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body 
                     xsens2vive_segments = ((R @ xsens_segments[0]) + t)        
                     drift_error = body_tracker_coords - xsens2vive_segments
+                    # print(f"drift error:{drift_error}")
                     t += ALPHA * drift_error
                     if TSP_L.frame_available and TSP_R.frame_available:
                         # Raw TSP data
                         raw_frame_L, raw_frame_R = get_raw_frames(TSP_L,TSP_R)
-                        display_frame = np.zeros(cached_raw_frame.shape, np.uint8)                   
+                        display_frame = cv2.cvtColor(cached_raw_frame, cv2.COLOR_GRAY2BGR)                  
                         padding = np.zeros((rows,between_patch_distance)) # add empty space between hands
                         cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1).astype(np.uint8) 
 
@@ -89,8 +89,7 @@ if __name__ == "__main__":
                             times = np.array([t for t, _ in com_history])
                             positions = np.array([pos for _, pos in com_history])
                             t_centered = times - times[0]
-                            slopes, _ = np.polyfit(t_centered, positions, deg=1)
-                            velocity_CoM = slopes  
+                            velocity_CoM, _ = np.polyfit(t_centered, positions, deg=1)
                             xsens_XCoM = xsens_CoM + (velocity_CoM / omega_0)
                         else:
                             velocity_CoM = np.zeros(2)
@@ -103,20 +102,17 @@ if __name__ == "__main__":
                         TSP_XCoM = [0,0]
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get vive pose matrix
                         t_TSP =  TSP_corner[0:3, 3]
-                        # print(f"corner:{t_TSP}")
                         R_TSP = TSP_corner[0:3, 0:3]
                         TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to TSP
                         
                         # Check transformation with left hand
                         xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, t_TSP, R_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
-                        # distance_cm = (t_TSP - body_tracker_coords) * 100
-                        # print(f"dist x {distance_cm[0]} | dist y {distance_cm[1]} | dist z {distance_cm[2]}")
-                        print(f"{xsens2TSP_segments_pixel}")
-                        if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[0] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[1]:
+                        # print(f"hand coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
+                        if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
                             # display_frame[xsens2TSP_segments_pixel[0]][xsens2TSP_segments_pixel[1]]= 255
                             cv2.drawMarker(
-                                displayFrame,
+                                display_frame,
                                 (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
                                 color=COLOR_HAND,
                                 markerType=cv2.MARKER_CROSS,
@@ -146,26 +142,26 @@ if __name__ == "__main__":
                             if len(distances_CoP2BoS) > 0:
                                 min_dist_CoP2BoS = np.min(distances_CoP2BoS)
                                 min_dist_XCoM2BoS = np.min(distances_XCoM2BoS)
-                                # saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
+                                saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
                         
                         # Save data
-                        # saver.save_frame(cached_raw_frame, time_sec)
-                        # saver.increment_frame_count()
+                        saver.save_frame(cached_raw_frame, time_sec)
+                        saver.increment_frame_count()
 
                         # Show XCoM pixel on display
-                        # XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
-                        # if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
-                        #     cv2.drawMarker(
-                        #         displayFrame,
-                        #         (XCoM_pixel[0],XCoM_pixel[1]),
-                        #         color=COLOR_XCOM,
-                        #         markerType=cv2.MARKER_STAR,
-                        #         markerSize=2,
-                        #         thickness=1,
-                        #     )
-                        #     print("XCoM in bounds")
-                        # else:
-                        #     print("XCoM out of bounds")
+                        XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
+                        if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
+                            cv2.drawMarker(
+                                display_frame,
+                                (XCoM_pixel[0],XCoM_pixel[1]),
+                                color=COLOR_XCOM,
+                                markerType=cv2.MARKER_STAR,
+                                markerSize=2,
+                                thickness=1,
+                            )
+                            print("XCoM in bounds")
+                        else:
+                            print("XCoM out of bounds")
 
                         # Output synchronized packet info
                         # print(f"Time: {time_sec}s | TSP_XCoM: {TSP_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")
@@ -178,13 +174,13 @@ if __name__ == "__main__":
                 (3 * 224, 2 * 224),
                 interpolation=cv2.INTER_NEAREST,
             )
-            raw_resized = cv2.resize(
-                cached_raw_frame,
-                (3 * 224, 2 * 224),
-                interpolation=cv2.INTER_NEAREST,
-            )
+            # raw_resized = cv2.resize(
+            #     cached_raw_frame,
+            #     (3 * 224, 2 * 224),
+            #     interpolation=cv2.INTER_NEAREST,
+            # )
             cv2.imshow("Synchronized Display", display_resized)
-            cv2.imshow("Raw frame", raw_resized)
+            # cv2.imshow("Raw frame", raw_resized)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
