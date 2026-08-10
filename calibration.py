@@ -42,6 +42,6 @@ def transform_Xsens2TSP(P_xsens, R_xv, t_xv, P_TSP, R_TSP):
     R_TSP - rotation of TSP, also get from Vive controller
     """
     xsens_vive = (R_xv @ P_xsens) + t_xv # Xsens point to Vive Space
-    xsens_TSP = R_TSP.T @ (xsens_vive - P_TSP) # Vive point to TSP Space
+    xsens_TSP = R_TSP.T @ (P_TSP - xsens_vive) # Vive point to TSP Space
     return xsens_TSP
 
