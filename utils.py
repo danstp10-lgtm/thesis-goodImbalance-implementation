@@ -55,20 +55,59 @@ def calculate_BoS(raw_frame, display_frame):
         # cv2.polylines(display_frame, [BoS_pixel], isClosed=True, color=(0, 255, 255), thickness=1)
     return BoS_cm
 
+# def calculate_XCoM(com_history, latest_CoM, time_sec):
+#     oldest_time, oldest_com = com_history[0]
+#     dt = time_sec - oldest_time
+#     if len(com_history) > 2:
+#         times = np.array([t for t, _ in com_history])
+#         positions = np.array([pos for _, pos in com_history])
+#         t_centered = times - times[0]
+#         velocity_CoM, _ = np.polyfit(t_centered, positions, deg=1)
+#         XCoM = latest_CoM + (velocity_CoM / omega_0)
+#     else:
+#         velocity_CoM = np.zeros(2)
+#         XCoM = latest_CoM.copy()
+#     # print(f"time period: {time_sec}:{oldest_time}={dt} | velocity_CoM: {velocity_CoM} | XCoM: {XCoM}")
+#     # print(len(com_history))
+#     return XCoM
+
 def calculate_XCoM(com_history, latest_CoM, time_sec):
-    oldest_time, oldest_com = com_history[0]
-    dt = time_sec - oldest_time
-    if len(com_history) > 2:
-        times = np.array([t for t, _ in com_history])
-        positions = np.array([pos for _, pos in com_history])
-        t_centered = times - times[0]
-        velocity_CoM, _ = np.polyfit(t_centered, positions, deg=1)
-        XCoM = latest_CoM + (velocity_CoM / omega_0)
-    else:
-        velocity_CoM = np.zeros(2)
-        XCoM = latest_CoM.copy()
-    # print(f"time period: {time_sec}:{oldest_time}={dt} | velocity_CoM: {velocity_CoM} | XCoM: {XCoM}")
-    # print(len(com_history))
+    if len(com_history) < 2:
+        return latest_CoM.copy()
+    times = np.array([t for t, _ in com_history])
+    positions = np.array([pos for _, pos in com_history])
+
+    # Clean NaN / Inf values
+    valid_mask = np.isfinite(times) & np.all(np.isfinite(positions), axis=1)
+    times = times[valid_mask]
+    positions = positions[valid_mask]
+    if len(times) <= 2:
+        return latest_CoM.copy()
+
+    # Check for zero or near-zero time duration
+    t_centered = times - times[0]
+    dt_total = t_centered[-1]
+    if dt_total < 1e-6:
+        return latest_CoM.copy()
+
+    try:
+        # Analytical Least Squares (Fast & Immune to SVD convergence bugs)
+        t_mean = np.mean(t_centered)
+        p_mean = np.mean(positions, axis=0)
+        denom = np.sum((t_centered - t_mean) ** 2)
+        if denom < 1e-12:
+            raise np.linalg.LinAlgError("Denominator near zero")
+        velocity_CoM = np.dot(t_centered - t_mean, positions - p_mean) / denom
+
+    except np.linalg.LinAlgError:
+        # Fallback 1: Simple finite difference between latest and oldest point
+        velocity_CoM = (positions[-1] - positions[0]) / dt_total
+    except Exception:
+        # Fallback 2: Zero velocity if everything else fails
+        velocity_CoM = np.zeros_like(latest_CoM)
+
+    # Calculate Extrapolated Center of Mass
+    XCoM = latest_CoM + (velocity_CoM / omega_0)
     return XCoM
 
 def calculate_min_dist(BoS, CoP,XCoM):
