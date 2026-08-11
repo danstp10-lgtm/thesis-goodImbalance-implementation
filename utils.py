@@ -102,13 +102,12 @@ def process_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_fr
     if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
         cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
         print("XCoM in bounds")
-    else:
-        print("XCoM out of bounds")
 
     # Show CoM on display
     CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
     if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
         cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
+        print("CoM in bounds")
         
     return TSP_XCoM
 
