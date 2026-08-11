@@ -8,44 +8,42 @@ from triad_openvr import triad_openvr
 from collections import deque
 import numpy as np
 
-rows, columns, between_patch_distance = 27, 19, 15
+rows, columns, between_patch_distance = 27, 19, 15 # TSP parameters
 
 if __name__ == "__main__":
-    # Connect to Patches
+    # Connect to Touch Sensitive Patches
     TSP_L = TSPDecoder(port="COM8",rows=rows, columns=columns)
-    TSP_R = TSPDecoder(port="COM11",rows=rows, columns=columns) # second touch patch
-    MVN = XsensUDPListener(host="127.0.0.1", port=9764)
-    saver = FileSaver(output_dir="session_data",frames_subdir="frames")
+    TSP_R = TSPDecoder(port="COM11",rows=rows, columns=columns) 
+    MVN = XsensUDPListener(host="127.0.0.1", port=9764) # start Xsens listener
+    saver = FileSaver(output_dir="recordings",frames_subdir="frames") # initialize file saver 
+    # Setup SteamVR listening
     v = triad_openvr.triad_openvr()
-    v.print_discovered_objects()
+    # v.print_discovered_objects()
     if "tracker_1" in v.devices:
         v.rename_device("tracker_1","body_tracker")
     if "tracker_2" in v.devices:
         v.rename_device("tracker_2","TSP_corner")
-
-    cached_raw_frame = np.zeros(
-        (rows, columns * 2 + between_patch_distance), dtype=np.uint8
-    )
+    cached_raw_frame = np.zeros((rows, columns * 2 + between_patch_distance), dtype=np.uint8)
+    # Visualization
     display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
     COLOR_HAND = (255, 255, 255)  # Bright White
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
-
+    # XCoM variables
     xsens_XCoM = None
     com_history = deque()
 
     # Calibration parameters
     calibrated = False
     calibration_samples = 300
+    ALPHA = 0.01 
     tundra_samples = []
     xsens_samples = []
-    ALPHA = 0.01 
-
     # Tundra Y-up to Z-up matrix
     M_swap = np.array([
-        [0, 0, 1],  # Grid X gets Tracker Z
-        [1, 0, 0],  # Grid Y gets Tracker X
-        [0, 1, 0]   # Height gets Tracker Y
+        [0, 0, 1],  # X -> Z
+        [1, 0, 0],  # Y -> X
+        [0, 1, 0]   # Z -> Y
     ])
 
     try:

@@ -1,12 +1,14 @@
 import queue
 import threading
+from datetime import datetime
 from pathlib import Path
 import numpy as np
 import csv
 
 class FileSaver:
-    def __init__(self, output_dir="session_data", frames_subdir = "frames", metrics_filename="session_metrics.csv"):
-        self.output_dir = Path(output_dir)
+    def __init__(self, output_dir="recordings", frames_subdir = "frames", metrics_filename="session_metrics.csv"):
+        session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.output_dir = Path(output_dir)/ session_id
         self.frames_dir = self.output_dir / frames_subdir
         self.metrics_file_path = self.output_dir / metrics_filename
         self.output_dir.mkdir(parents=True,exist_ok=True)
