@@ -27,8 +27,6 @@ if __name__ == "__main__":
         (rows, columns * 2 + between_patch_distance), dtype=np.uint8
     )
     display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
-    COLOR_COM = (0, 255, 0)  # Bright Green
-    COLOR_XCOM = (0, 255, 255)  # Bright Yellow
     COLOR_HAND = (255, 255, 255)  # Bright White
 
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
@@ -54,10 +52,10 @@ if __name__ == "__main__":
         while True:
             if MVN.new_data_available: # On new Xsens data
                 xsens_data = MVN.get_latest_data()
-                xsens_CoM = xsens_data["com"] 
+                latest_xsens_CoM = xsens_data["com"] 
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
-                com_history.append((time_sec, xsens_CoM))
+                com_history.append((time_sec, latest_xsens_CoM))
                 body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
 
                 # Determine transformation parameters: R, t
@@ -87,15 +85,9 @@ if __name__ == "__main__":
                         cached_raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1).astype(np.uint8) 
 
                         # Calculate XCoM, with smoothing
-                        xsens_XCoM = calculate_XCoM(com_history, xsens_CoM, time_sec)
-                        com_history.clear() # clear history for next timestep                  
-
-                        # Transform Xsens to TSP data
-                        TSP_XCoM = [0,0]
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
-                        t_TSP =  TSP_corner[0:3, 3]
-                        R_TSP = TSP_corner[0:3, 0:3]
-                        TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to TSP
+                        TSP_XCoM = calculate_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, TSP_corner, display_frame)
+                        com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
                         # xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, t_TSP, R_TSP) * 100
@@ -123,21 +115,6 @@ if __name__ == "__main__":
                         saver.save_frame(cached_raw_frame, time_sec)
                         saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
                         saver.increment_frame_count()
-
-                        # Show XCoM pixel on display
-                        XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
-                        if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
-                            cv2.drawMarker(
-                                display_frame,
-                                (XCoM_pixel[0],XCoM_pixel[1]),
-                                color=COLOR_XCOM,
-                                markerType=cv2.MARKER_STAR,
-                                markerSize=2,
-                                thickness=1,
-                            )
-                            print("XCoM in bounds")
-                        else:
-                            print("XCoM out of bounds")
 
                         # Output synchronized packet info
                         # print(f"Time: {time_sec}s | TSP_XCoM: {TSP_XCoM} | CoP (cm): {CoP_cm} | MinDistCoP: {min_dist_CoP2BoS} | MinDistXCoM {min_dist_XCoM2BoS}")

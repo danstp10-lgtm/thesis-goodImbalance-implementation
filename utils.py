@@ -18,6 +18,8 @@ omega_0 = np.sqrt(9.81/0.6)
 
 COLOR_COP = (0, 0, 255)  # Bright Red
 COLOR_BOS = (255, 0, 0)  # Bright Blue
+COLOR_COM = (0, 255, 0)  # Bright Green
+COLOR_XCOM = (0, 255, 255)  # Bright Yellow
 
 def get_raw_frames(TSP_L,TSP_R):
     # Get raw pressure data
@@ -72,8 +74,8 @@ def calculate_BoS(raw_frame, display_frame):
 #     # print(len(com_history))
 #     return XCoM
 
-def calculate_XCoM(com_history, latest_CoM, time_sec):
-    if len(com_history) < 2:
+def calculate_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_frame):
+    if len(com_history) < 2: 
         return latest_CoM.copy()
     times = np.array([t for t, _ in com_history])
     positions = np.array([pos for _, pos in com_history])
@@ -103,8 +105,42 @@ def calculate_XCoM(com_history, latest_CoM, time_sec):
         velocity_CoM = (positions[-1] - positions[0]) / dt_total # difference between latest and oldest point
     except Exception:
         velocity_CoM = np.zeros_like(latest_CoM) # 0 velocity if everything else fails
-    XCoM = latest_CoM + (velocity_CoM / omega_0)
-    return XCoM
+    xsens_XCoM = latest_CoM + (velocity_CoM / omega_0)
+
+    # Transform Xsens XCoM to TSP coordinates
+    t_TSP =  TSP_corner[0:3, 3]
+    R_TSP = TSP_corner[0:3, 0:3]
+    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to TSP
+
+    # Show XCoM pixel on display
+    XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
+    if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(
+            display_frame,
+            (XCoM_pixel[0],XCoM_pixel[1]),
+            color=COLOR_XCOM,
+            markerType=cv2.MARKER_STAR,
+            markerSize=1,
+            thickness=1,
+        )
+        print("XCoM in bounds")
+    else:
+        print("XCoM out of bounds")
+
+    # Show CoM pixel on display
+    TSP_CoM = transform_Xsens2TSP(latest_CoM, R, t, t_TSP, R_TSP)
+    CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
+    if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(
+            display_frame,
+            (CoM_pixel[0],CoM_pixel[1]),
+            color=COLOR_COM,
+            markerType=cv2.MARKER_STAR,
+            markerSize=1,
+            thickness=1,
+        )
+
+    return TSP_XCoM
 
 def calculate_min_dist(BoS, CoP,XCoM):
     distances_CoP2BoS = []
@@ -171,40 +207,4 @@ def transform_Xsens2TSP(P_xsens, R_xv, t_xv, P_TSP, R_TSP):
     xsens_vive = (R_xv @ P_xsens) + t_xv # Xsens point to Vive Space
     xsens_TSP = R_TSP.T @ (P_TSP - xsens_vive) # Vive point to TSP Space
     return xsens_TSP
-
-
-
-def main():
-    rows, columns, between_hand_distance = 27, 19, 15
-    while True:
-        if TSP_L.frame_available and TSP_R.frame_available:
-            raw_frame_L, raw_frame_R=get_raw_frames(TSP_L,TSP_R)
-
-            # add empty space between hands
-            padding = np.zeros((rows,between_hand_distance))
-            raw_frame = np.concatenate([raw_frame_L, padding,raw_frame_R], axis=1)
-
-            display_frame = np.zeros(raw_frame.shape, np.uint8)
-
-            # Calculate CoP
-            CoP_cm = calculate_CoP(raw_frame)
-
-            # Calculate BoS
-            BoS = calculate_BoS(raw_frame,display_frame)
-
-            # Add CoP_pixel to display
-            display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
-
-            display_frame = cv2.resize(display_frame, (3*224, 2*224)) #resize
-            raw_frame = cv2.resize(raw_frame/255, (3*224, 2*224)) #resize
-            cv2.imshow('display_frame', display_frame)
-            cv2.imshow('raw_frame', raw_frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    main()
-
         
