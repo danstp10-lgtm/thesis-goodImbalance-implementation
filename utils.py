@@ -91,22 +91,17 @@ def calculate_XCoM(com_history, latest_CoM, time_sec):
         return latest_CoM.copy()
 
     try:
-        # Analytical Least Squares (Fast & Immune to SVD convergence bugs)
+        # Analytical Least Squares
         t_mean = np.mean(t_centered)
         p_mean = np.mean(positions, axis=0)
         denom = np.sum((t_centered - t_mean) ** 2)
         if denom < 1e-12:
             raise np.linalg.LinAlgError("Denominator near zero")
         velocity_CoM = np.dot(t_centered - t_mean, positions - p_mean) / denom
-
     except np.linalg.LinAlgError:
-        # Fallback 1: Simple finite difference between latest and oldest point
-        velocity_CoM = (positions[-1] - positions[0]) / dt_total
+        velocity_CoM = (positions[-1] - positions[0]) / dt_total # difference between latest and oldest point
     except Exception:
-        # Fallback 2: Zero velocity if everything else fails
-        velocity_CoM = np.zeros_like(latest_CoM)
-
-    # Calculate Extrapolated Center of Mass
+        velocity_CoM = np.zeros_like(latest_CoM) # 0 velocity if everything else fails
     XCoM = latest_CoM + (velocity_CoM / omega_0)
     return XCoM
 
