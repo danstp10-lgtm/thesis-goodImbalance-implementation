@@ -6,7 +6,6 @@ from support_functions import *
 import cv2
 from triad_openvr import triad_openvr
 from collections import deque
-from calibration import *
 import numpy as np
 
 rows, columns, between_patch_distance = 27, 19, 15
@@ -127,7 +126,7 @@ if __name__ == "__main__":
 
                         # Show XCoM pixel on display
                         XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
-                        if 0 < XCoM_pixel[0] < display_frame.shape[0] and 0 < XCoM_pixel[1] < display_frame.shape[1]:
+                        if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
                             cv2.drawMarker(
                                 display_frame,
                                 (XCoM_pixel[0],XCoM_pixel[1]),
