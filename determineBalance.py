@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
                         # Calculate XCoM, with smoothing
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
-                        TSP_XCoM = calculate_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, TSP_corner, display_frame)
+                        TSP_XCoM = process_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, TSP_corner, display_frame)
                         com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
@@ -105,8 +105,8 @@ if __name__ == "__main__":
                         #     )
                         
                         # Calculate TSP metrics
-                        CoP_cm = calculate_CoP(cached_raw_frame, display_frame)
-                        BoS_cm = calculate_BoS(cached_raw_frame, display_frame)
+                        CoP_cm = process_CoP(cached_raw_frame, display_frame)
+                        BoS_cm = process_BoS(cached_raw_frame, display_frame)
                         
                         # Calculate minimum distance of CoP and XCoM to BoS boundaries in cm, margin of stability b
                         min_dist_CoP2BoS, min_dist_XCoM2BoS = calculate_min_dist(BoS_cm, CoP_cm, TSP_XCoM)

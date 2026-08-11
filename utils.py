@@ -33,7 +33,7 @@ def get_raw_frames(TSP_L,TSP_R):
         # raw_frame_R = median_filter(raw_frame_R, size=4)
         return raw_frame_L, raw_frame_R
 
-def calculate_CoP(raw_frame,display_frame):
+def process_CoP(raw_frame,display_frame):
     pressure_sum = raw_frame.sum()
     if pressure_sum>0:
         x_grid, y_grid = np.indices(raw_frame.shape)
@@ -45,7 +45,7 @@ def calculate_CoP(raw_frame,display_frame):
         CoP_cm = [0,0]        
     return CoP_cm
 
-def calculate_BoS(raw_frame, display_frame):
+def process_BoS(raw_frame, display_frame):
     binary_mask = (raw_frame > 80).astype(np.uint8) * 255
     contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     BoS_cm = None
@@ -58,23 +58,7 @@ def calculate_BoS(raw_frame, display_frame):
         # cv2.polylines(display_frame, [BoS_pixel], isClosed=True, color=(0, 255, 255), thickness=1)
     return BoS_cm
 
-# def calculate_XCoM(com_history, latest_CoM, time_sec):
-#     oldest_time, oldest_com = com_history[0]
-#     dt = time_sec - oldest_time
-#     if len(com_history) > 2:
-#         times = np.array([t for t, _ in com_history])
-#         positions = np.array([pos for _, pos in com_history])
-#         t_centered = times - times[0]
-#         velocity_CoM, _ = np.polyfit(t_centered, positions, deg=1)
-#         XCoM = latest_CoM + (velocity_CoM / omega_0)
-#     else:
-#         velocity_CoM = np.zeros(2)
-#         XCoM = latest_CoM.copy()
-#     # print(f"time period: {time_sec}:{oldest_time}={dt} | velocity_CoM: {velocity_CoM} | XCoM: {XCoM}")
-#     # print(len(com_history))
-#     return XCoM
-
-def calculate_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_frame):
+def process_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_frame):
     if len(com_history) < 2: 
         return latest_CoM.copy()
     times = np.array([t for t, _ in com_history])
@@ -110,36 +94,22 @@ def calculate_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_
     # Transform Xsens XCoM to TSP coordinates
     t_TSP =  TSP_corner[0:3, 3]
     R_TSP = TSP_corner[0:3, 0:3]
-    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to TSP
+    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to XCoM to TSP
+    TSP_CoM = transform_Xsens2TSP(latest_CoM, R, t, t_TSP, R_TSP) * 100 # transform to CoM to TSP
 
-    # Show XCoM pixel on display
+    # Show XCoM on display
     XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
     if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
-        cv2.drawMarker(
-            display_frame,
-            (XCoM_pixel[0],XCoM_pixel[1]),
-            color=COLOR_XCOM,
-            markerType=cv2.MARKER_STAR,
-            markerSize=1,
-            thickness=1,
-        )
+        cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
         print("XCoM in bounds")
     else:
         print("XCoM out of bounds")
 
-    # Show CoM pixel on display
-    TSP_CoM = transform_Xsens2TSP(latest_CoM, R, t, t_TSP, R_TSP)
+    # Show CoM on display
     CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
     if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
-        cv2.drawMarker(
-            display_frame,
-            (CoM_pixel[0],CoM_pixel[1]),
-            color=COLOR_COM,
-            markerType=cv2.MARKER_STAR,
-            markerSize=1,
-            thickness=1,
-        )
-
+        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
+        
     return TSP_XCoM
 
 def calculate_min_dist(BoS, CoP,XCoM):
