@@ -1,14 +1,14 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-def get_Xsens2Vive_transforms(xsens_samples, vive_samples):
+def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     # Compute centroids
     centroid_xsens = np.mean(xsens_samples, axis=0)
-    centroid_vive = np.mean(vive_samples, axis=0)
+    centroid_vive = np.mean(tundra_samples, axis=0)
 
     # Bring both to origin
     X = xsens_samples - centroid_xsens
-    V = vive_samples - centroid_vive
+    V = tundra_samples - centroid_vive
 
     # Compute the covariance matrix
     H = np.dot(X.T, V)

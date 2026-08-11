@@ -40,11 +40,11 @@ if __name__ == "__main__":
     # Calibration parameters
     calibrated = False
     calibration_samples = 300
-    vive_samples = []
+    tundra_samples = []
     xsens_samples = []
     ALPHA = 0.01 
 
-    # Vive Y-up to Z-up matrix
+    # Tundra Y-up to Z-up matrix
     M_swap = np.array([
         [0, 0, 1],  # Grid X gets Tracker Z
         [1, 0, 0],  # Grid Y gets Tracker X
@@ -53,29 +53,30 @@ if __name__ == "__main__":
 
     try:
         while True:
-            if MVN.new_data_available:
-                xsens_data=MVN.get_latest_data()
+            if MVN.new_data_available: # On new Xsens data
+                xsens_data = MVN.get_latest_data()
                 xsens_CoM = xsens_data["com"] 
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
                 com_history.append((time_sec, xsens_CoM))
-                body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] 
+                body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
+
                 # Determine transformation parameters: R, t
                 if not calibrated:     
-                    if len(xsens_samples)==len(vive_samples)==calibration_samples: # Collect n samples of one Vive and one Xsens tracker, at roughly the same place
+                    if len(xsens_samples)==len(tundra_samples)==calibration_samples: # Collect n samples of one Tundra and one Xsens tracker, at roughly the same place
                         xsens_mat = np.array(xsens_samples)
-                        vive_mat = np.array(vive_samples)
-                        R, t, sim_error = get_Xsens2Vive_transforms(xsens_mat, vive_mat)
+                        tundra_mat = np.array(tundra_samples)
+                        R, t, sim_error = get_Xsens2Tundra_transforms(xsens_mat, tundra_mat)
                         print(f"similarity error:{sim_error}")
                         calibrated = True
                     elif body_tracker_coords:
-                        # print(f"xsens ({len(xsens_samples)}){xsens_samples} | vive ({len(vive_samples)}) : {body_tracker_coords[0:3]}")
+                        # print(f"xsens ({len(xsens_samples)}){xsens_samples} | tundra ({len(tundra_samples)}) : {body_tracker_coords[0:3]}")
                         xsens_samples.append(xsens_segments[0])
-                        vive_samples.append(body_tracker_coords)
+                        tundra_samples.append(body_tracker_coords)
                 else:
                     # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body 
-                    xsens2vive_segments = ((R @ xsens_segments[0]) + t)        
-                    drift_error = body_tracker_coords - xsens2vive_segments
+                    xsens2tundra_segments = ((R @ xsens_segments[0]) + t)        
+                    drift_error = body_tracker_coords - xsens2tundra_segments
                     t += ALPHA * drift_error
                     # print(f"drift error:{drift_error}")
 
@@ -92,7 +93,7 @@ if __name__ == "__main__":
 
                         # Transform Xsens to TSP data
                         TSP_XCoM = [0,0]
-                        TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get vive pose matrix
+                        TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
                         t_TSP =  TSP_corner[0:3, 3]
                         R_TSP = TSP_corner[0:3, 0:3]
                         TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to TSP
