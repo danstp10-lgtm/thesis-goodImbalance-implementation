@@ -34,16 +34,18 @@ class XsensUDPListener:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
-                pos, ori, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data, last_received, last_message_type)  
+                pos, ori, vel, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data, last_received, last_message_type)  
                 if new_packet_flag:
                     with self._lock:
                         self.latest_timecode = timecode
                         if last_message_type == 24:
-                            self.latest_com = np.asarray([pos[0],pos[1],pos[2]]) # get x and y axis coordinates
+                            self.latest_com = np.asarray([pos[0],pos[1],pos[2],vel[0],vel[1],vel[2]]) # get x and y axis coordinates
                         elif last_message_type == 2:
                             self.segments = pos
                         elif last_message_type == 21:
                             self.segments = pos
+                        elif last_message_type == 23:
+                            self.segments = pos 
                             
                         self.new_data_available = True
             # except Exception as e:
@@ -75,7 +77,7 @@ class XsensUDPListener:
         datagram_counter = f"{message[10]:b}"
         num_segments = int(message[11])
         timecode = float(struct.unpack('>I', message[12:16])[0])
-        
+        vel = np.array([])
         pos = np.array([])
         ori = np.array([])
 
@@ -115,11 +117,22 @@ class XsensUDPListener:
                 floats = struct.unpack('>9f', message[start + 4 : start + packet_size])
                 pos[s, :] = floats[0:3]
                 # ori[s, :] = floats[3:7]
-        elif message_type == 24: # CoM position data
-            packet_size = 12
-            start = header_length + packet_size
-            floats = struct.unpack('>3f', message[start : start + packet_size])
+        elif message_type == 23:
+            segments = [14,10] # choose which segments to send
+            packet_size = 68 
+            pos = np.zeros((2, 3))
+            # ori = np.zeros((2, 4))
+            for s in range(len(segments)):
+                start = header_length + packet_size*segments[s] 
+                floats = struct.unpack('>16f', message[start + 4 : start + packet_size])
+                pos[s, :] = floats[3:7]
+                # ori[s, :] = floats[3:7]
+        elif message_type == 24: # CoM data
+            packet_size = 36
+            start = header_length
+            floats = struct.unpack('>9f', message[start : start + packet_size])
             pos = floats[0:3]
+            vel = floats[4:7]
         else:
             new_packet_flag = 1
 
@@ -131,7 +144,7 @@ class XsensUDPListener:
         #     f"timecode: {timecode:.0f}\n"
         #     f"Data: {pos}\n")
 
-        return pos, ori, sample_counter, timecode, new_packet_flag, message_type
+        return pos, ori, vel, sample_counter, timecode, new_packet_flag, message_type
 
     def close(self):
             """Gracefully closes the socket and stops the UDP listener thread."""
