@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # Calibration parameters
     calibrated = False
     calibration_samples = 300
-    ALPHA = 0.005 
+    ALPHA = 0.01 
     tundra_samples = []
     xsens_samples = []
     # Tundra Y-up to Z-up matrix
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                         com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
-                        xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[1],R, t, R_TSP, t_TSP) * 100
+                        xsens2TSP_segments = transform_Xsens2TSP(latest_xsens_CoM,R, t, R_TSP, t_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
                         print(f"test coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
                         if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
