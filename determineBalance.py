@@ -36,13 +36,13 @@ if __name__ == "__main__":
     # Calibration parameters
     calibrated = False
     calibration_samples = 300
-    ALPHA = 0.01 
+    ALPHA = 0.005 
     tundra_samples = []
     xsens_samples = []
     # Tundra Y-up to Z-up matrix
     M_swap = np.array([
-        [0, 0, 1],  # X -> Z
-        [1, 0, 0],  # Y -> X
+        [1, 0, 0],  # X -> X
+        [0, 0, 1],  # Y -> Z
         [0, 1, 0]   # Z -> Y
     ])
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
                 com_history.append((time_sec, latest_xsens_CoM))
-                body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
+                body_tracker_coords = M_swap @ v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
 
                 # Determine transformation parameters: R, t
                 if not calibrated:     
@@ -62,12 +62,12 @@ if __name__ == "__main__":
                         xsens_mat = np.array(xsens_samples)
                         tundra_mat = np.array(tundra_samples)
                         R, t, sim_error = get_Xsens2Tundra_transforms(xsens_mat, tundra_mat)
-                        print(f"similarity error:{sim_error}")
+                        print(f"R: {R} | t: {t} |similarity error:{sim_error}")
                         calibrated = True
-                    elif body_tracker_coords:
+                    elif body_tracker_coords.any():
                         # print(f"xsens ({len(xsens_samples)}){xsens_samples} | tundra ({len(tundra_samples)}) : {body_tracker_coords[0:3]}")
                         xsens_samples.append(xsens_segments[0])
-                        tundra_samples.append(body_tracker_coords)
+                        tundra_samples.append(M_swap @ body_tracker_coords)
                 else:
                     # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body 
                     xsens2tundra_segments = ((R @ xsens_segments[0]) + t)        
@@ -84,23 +84,25 @@ if __name__ == "__main__":
 
                         # Calculate XCoM, with smoothing
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
-                        TSP_XCoM = process_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, TSP_corner, display_frame)
+                        t_TSP =  M_swap @ TSP_corner[0:3, 3]
+                        R_TSP = TSP_corner[0:3, 0:3]
+                        TSP_XCoM = process_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame)
                         com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
-                        # xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, t_TSP, R_TSP) * 100
-                        # xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
-                        # # print(f"hand coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
-                        # if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
-                        #     # display_frame[xsens2TSP_segments_pixel[0]][xsens2TSP_segments_pixel[1]]= 255
-                        #     cv2.drawMarker(
-                        #         display_frame,
-                        #         (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
-                        #         color=COLOR_HAND,
-                        #         markerType=cv2.MARKER_CROSS,
-                        #         markerSize=3,
-                        #         thickness=1,
-                        #     )
+                        xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[1],R, t, R_TSP, t_TSP) * 100
+                        xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
+                        print(f"test coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
+                        if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
+                            # display_frame[xsens2TSP_segments_pixel[0]][xsens2TSP_segments_pixel[1]]= 255
+                            cv2.drawMarker(
+                                display_frame,
+                                (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
+                                color=COLOR_HAND,
+                                markerType=cv2.MARKER_CROSS,
+                                markerSize=3,
+                                thickness=1,
+                            )
                         
                         # Calculate TSP metrics
                         CoP_cm = process_CoP(cached_raw_frame, display_frame)
