@@ -38,8 +38,8 @@ def process_CoP(raw_frame,display_frame):
     if pressure_sum>0:
         x_grid, y_grid = np.indices(raw_frame.shape)
         CoP_pixel = (int((raw_frame * x_grid).sum() / pressure_sum), int((raw_frame * y_grid).sum() / pressure_sum))
-        # display_frame[CoP_pixel[0]][CoP_pixel[1]] = 255
-        cv2.circle(display_frame, (CoP_pixel[1],CoP_pixel[0]), radius=1, color=COLOR_COP, thickness=-1)
+        # cv2.circle(display_frame, (CoP_pixel[1],CoP_pixel[0]), radius=1, color=COLOR_COP, thickness=-1)
+        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COP,cv2.MARKER_STAR,1,1)
         CoP_cm = (CoP_pixel[0]*pixel_X_length,CoP_pixel[1]*pixel_Y_length)
     else:
         CoP_cm = [0,0]        
@@ -55,7 +55,6 @@ def process_BoS(raw_frame, display_frame):
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
         # Add BoS_pixel to display
         cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
-        # cv2.polylines(display_frame, [BoS_pixel], isClosed=True, color=(0, 255, 255), thickness=1)
     return BoS_cm
 
 def process_XCoM(latest_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame):
@@ -66,7 +65,6 @@ def process_XCoM(latest_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame):
     # Transform Xsens XCoM to TSP coordinates
     TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, R_TSP, t_TSP ) * 100 # transform to XCoM to TSP
     TSP_CoM = transform_Xsens2TSP(latest_CoM_pos, R, t, R_TSP, t_TSP ) * 100 # transform to CoM to TSP
-    # print({f"latest_CoM_pos:{np.round(latest_CoM_pos,2)} | TSP_CoM: {np.round(TSP_CoM,2)}"})
 
     # Show XCoM on display
     XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
