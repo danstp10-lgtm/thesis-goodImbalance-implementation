@@ -29,7 +29,6 @@ class XsensUDPListener:
     def _listen_loop(self):
         last_received = None
         last_message_type = None
-        last_CoM_readings = [0,0]
         while self._running:
             try:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
@@ -87,7 +86,7 @@ class XsensUDPListener:
         # Payload
         header_length = 24
         if message_type == 2: # Quaternion 23 main segment data
-            segments = [14] # choose which segments to send
+            segments = [14,10] # choose which segments to send
             packet_size = 32 
             pos = np.zeros((2, 3))
             ori = np.zeros((2, 4))
