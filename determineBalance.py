@@ -53,7 +53,7 @@ if __name__ == "__main__":
                 latest_xsens_CoM = xsens_data["com"] 
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
-                com_history.append((time_sec, latest_xsens_CoM))
+                # com_history.append((time_sec, latest_xsens_CoM))
                 body_tracker_coords = M_swap @ v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
 
                 # Determine transformation parameters: R, t
@@ -86,11 +86,11 @@ if __name__ == "__main__":
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
                         t_TSP =  M_swap @ TSP_corner[0:3, 3]
                         R_TSP = TSP_corner[0:3, 0:3]
-                        TSP_XCoM = process_XCoM(com_history, latest_xsens_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame)
-                        com_history.clear() # clear history for next timestep                  
+                        TSP_XCoM = process_XCoM(latest_xsens_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame)
+                        # com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
-                        xsens2TSP_segments = transform_Xsens2TSP(latest_xsens_CoM,R, t, R_TSP, t_TSP) * 100
+                        xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, R_TSP, t_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
                         print(f"test coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
                         if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:

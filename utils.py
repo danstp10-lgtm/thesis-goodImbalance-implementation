@@ -58,44 +58,15 @@ def process_BoS(raw_frame, display_frame):
         # cv2.polylines(display_frame, [BoS_pixel], isClosed=True, color=(0, 255, 255), thickness=1)
     return BoS_cm
 
-def process_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_frame):
-    if len(com_history) < 2: 
-        return latest_CoM.copy()
-    times = np.array([t for t, _ in com_history])
-    positions = np.array([pos for _, pos in com_history])
-
-    # Clean NaN / Inf values
-    valid_mask = np.isfinite(times) & np.all(np.isfinite(positions), axis=1)
-    times = times[valid_mask]
-    positions = positions[valid_mask]
-    if len(times) <= 2:
-        return latest_CoM.copy()
-
-    # Check for zero or near-zero time duration
-    t_centered = times - times[0]
-    dt_total = t_centered[-1]
-    if dt_total < 1e-6:
-        return latest_CoM.copy()
-
-    try:
-        # Analytical Least Squares
-        t_mean = np.mean(t_centered)
-        p_mean = np.mean(positions, axis=0)
-        denom = np.sum((t_centered - t_mean) ** 2)
-        if denom < 1e-12:
-            raise np.linalg.LinAlgError("Denominator near zero")
-        velocity_CoM = np.dot(t_centered - t_mean, positions - p_mean) / denom
-    except np.linalg.LinAlgError:
-        velocity_CoM = (positions[-1] - positions[0]) / dt_total # difference between latest and oldest point
-    except Exception:
-        velocity_CoM = np.zeros_like(latest_CoM) # 0 velocity if everything else fails
-    xsens_XCoM = latest_CoM + (velocity_CoM / omega_0)
+def process_XCoM(latest_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame):
+    latest_CoM_pos = latest_CoM[0:3]
+    latest_CoM_vel = latest_CoM[3:7]
+    xsens_XCoM = latest_CoM_pos + (latest_CoM_vel / omega_0)
 
     # Transform Xsens XCoM to TSP coordinates
-    t_TSP =  TSP_corner[0:3, 3]
-    R_TSP = TSP_corner[0:3, 0:3]
-    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, t_TSP, R_TSP ) * 100 # transform to XCoM to TSP
-    TSP_CoM = transform_Xsens2TSP(latest_CoM, R, t, t_TSP, R_TSP) * 100 # transform to CoM to TSP
+    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, R_TSP, t_TSP ) * 100 # transform to XCoM to TSP
+    TSP_CoM = transform_Xsens2TSP(latest_CoM_pos, R, t, R_TSP, t_TSP ) * 100 # transform to CoM to TSP
+    # print({f"latest_CoM_pos:{np.round(latest_CoM_pos,2)} | TSP_CoM: {np.round(TSP_CoM,2)}"})
 
     # Show XCoM on display
     XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
@@ -105,6 +76,7 @@ def process_XCoM(com_history, latest_CoM, time_sec, R, t, TSP_corner, display_fr
 
     # Show CoM on display
     CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
+    print(f"CoM pixel: {CoM_pixel}")
     if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
         cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
         print("CoM in bounds")
@@ -136,11 +108,11 @@ def calculate_min_dist(BoS, CoP,XCoM):
 def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     # Compute centroids
     centroid_xsens = np.mean(xsens_samples, axis=0)
-    centroid_vive = np.mean(tundra_samples, axis=0)
+    centroid_tundra = np.mean(tundra_samples, axis=0)
 
     # Bring both to origin
     X = xsens_samples - centroid_xsens
-    V = tundra_samples - centroid_vive
+    V = tundra_samples - centroid_tundra
 
     # Compute the covariance matrix
     H = np.dot(X.T, V)
@@ -156,7 +128,7 @@ def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     R = np.dot(Vt.T, U.T)
 
     # Optimal translation (depends on R, so computed after it)
-    t = centroid_vive - np.dot(R, centroid_xsens)
+    t = centroid_tundra - np.dot(R, centroid_xsens)
 
     # RMSD
     rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
@@ -164,16 +136,16 @@ def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     return R, t, rmsd
 
 
-def transform_Xsens2TSP(P_xsens, R_xv, t_xv, P_TSP, R_TSP):
+def transform_Xsens2TSP(P_xsens, R_xv, t_xv, R_TSP, t_TSP):
     """
     Transforms a 3D point from Xsens space directly to TSP space.
     P_xsense - point in Xsens space
-    R_xv - rotation matrix Xsens to Vive
-    t_xv - trainslation Xsens to Vive
-    P_TSP - origin of TSP, marked by third Vive controller
-    R_TSP - rotation of TSP, also get from Vive controller
+    R_xv - rotation matrix Xsens to Tundra
+    t_xv - trainslation Xsens to Tundra
+    t_TSP - origin of TSP, marked by third Tundra controller
+    R_TSP - rotation of TSP, also get from Tundra controller
     """
-    xsens_vive = (R_xv @ P_xsens) + t_xv # Xsens point to Vive Space
-    xsens_TSP = R_TSP.T @ (P_TSP - xsens_vive) # Vive point to TSP Space
+    xsens_tundra = (R_xv @ P_xsens) + t_xv # Xsens point to Tundra Space
+    xsens_TSP = R_TSP.T @ (xsens_tundra - t_TSP) # Tundra point to TSP Space
     return xsens_TSP
         
