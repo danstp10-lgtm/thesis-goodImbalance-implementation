@@ -5,7 +5,6 @@ import time
 from support_functions import *
 import cv2
 from triad_openvr import triad_openvr
-from collections import deque
 import numpy as np
 
 rows, columns, between_patch_distance = 27, 19, 15 # TSP parameters
@@ -31,7 +30,6 @@ if __name__ == "__main__":
     print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
     # XCoM variables
     xsens_XCoM = None
-    com_history = deque()
 
     # Calibration parameters
     calibrated = False
@@ -53,7 +51,6 @@ if __name__ == "__main__":
                 latest_xsens_CoM = xsens_data["com"] 
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
-                # com_history.append((time_sec, latest_xsens_CoM))
                 body_tracker_coords = M_swap @ v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
 
                 # Determine transformation parameters: R, t
@@ -62,10 +59,9 @@ if __name__ == "__main__":
                         xsens_mat = np.array(xsens_samples)
                         tundra_mat = np.array(tundra_samples)
                         R, t, sim_error = get_Xsens2Tundra_transforms(xsens_mat, tundra_mat)
-                        print(f"R: {R} | t: {t} |similarity error:{sim_error}")
+                        print(f"Calibration complete similarity error:{sim_error} \n R: {R} \n t: {t} ")
                         calibrated = True
                     elif body_tracker_coords.any():
-                        # print(f"xsens ({len(xsens_samples)}){xsens_samples} | tundra ({len(tundra_samples)}) : {body_tracker_coords[0:3]}")
                         xsens_samples.append(xsens_segments[0])
                         tundra_samples.append(M_swap @ body_tracker_coords)
                 else:
@@ -100,7 +96,7 @@ if __name__ == "__main__":
                                 (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
                                 color=COLOR_HAND,
                                 markerType=cv2.MARKER_CROSS,
-                                markerSize=3,
+                                markerSize=1,
                                 thickness=1,
                             )
                         
