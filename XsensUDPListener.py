@@ -30,7 +30,7 @@ class XsensUDPListener:
         last_received = None
         last_message_type = None
         while self._running:
-            try:
+            # try:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
@@ -42,10 +42,13 @@ class XsensUDPListener:
                             self.latest_com = np.asarray([pos[0],pos[1],pos[2]]) # get x and y axis coordinates
                         elif last_message_type == 2:
                             self.segments = pos
+                        elif last_message_type == 21:
+                            self.segments = pos
+                            
                         self.new_data_available = True
-            except Exception as e:
-                print(e.args)
-                time.sleep(0.001)
+            # except Exception as e:
+            #     print(e.args)
+            #     time.sleep(0.001)
 
     def get_latest_data(self):
         with self._lock:
@@ -102,7 +105,16 @@ class XsensUDPListener:
                 start = header_length + s*packet_size
                 floats = struct.unpack('>3f', message[start + 4 : start + packet_size])
                 pos[s, :] = floats[0:3]
-
+        elif message_type == 21:
+            segments = [14,10] # choose which segments to send
+            packet_size = 40 
+            pos = np.zeros((2, 3))
+            # ori = np.zeros((2, 4))
+            for s in range(len(segments)):
+                start = header_length + packet_size*segments[s] 
+                floats = struct.unpack('>9f', message[start + 4 : start + packet_size])
+                pos[s, :] = floats[0:3]
+                # ori[s, :] = floats[3:7]
         elif message_type == 24: # CoM position data
             packet_size = 12
             start = header_length + packet_size
