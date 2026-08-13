@@ -41,7 +41,7 @@ class FileSaver:
                         "cop2bos_dist_cm",
                         "xcom_x",
                         "xcom_y",
-                        "xcom_bos_dist_cm",
+                        "xcom2bos_dist_cm",
                     ]
                 )
 
