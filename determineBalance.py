@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 latest_xsens_CoM = xsens_data["com"] 
                 time_sec = xsens_data["timecode"] / 1000.0
                 xsens_segments = xsens_data["segments"]
-                body_tracker_coords = M_swap @ v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
+                body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
                 com_history.append((time_sec, latest_xsens_CoM))
                 # Determine transformation parameters: R, t
                 if not calibrated:     
@@ -65,9 +65,9 @@ if __name__ == "__main__":
                         R, t, sim_error = get_Xsens2Tundra_transforms(xsens_mat, tundra_mat)
                         print(f"Calibration complete similarity error:{sim_error} \n R: {R} \n t: {t} ")
                         calibrated = True
-                    elif frame_counter % sample_stride == 0 and body_tracker_coords.any():
+                    elif frame_counter % sample_stride == 0 and body_tracker_coords:
                         xsens_calibration_samples.append(xsens_segments[0])
-                        tundra_samples.append(M_swap @ body_tracker_coords)
+                        tundra_samples.append(body_tracker_coords)
                         # print(frame_counter)
                     frame_counter += 1    
                 else:
@@ -86,8 +86,8 @@ if __name__ == "__main__":
 
                         # Calculate XCoM, with smoothing
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
-                        t_TSP =  M_swap @ TSP_corner[0:3, 3] # convert to Z-up coordinates
-                        R_TSP = TSP_corner[0:3, 0:3] @ M_swap.T
+                        t_TSP = TSP_corner[0:3, 3] # convert to Z-up coordinates
+                        R_TSP = TSP_corner[0:3, 0:3] 
                         # print(np.array(com_history))
                         com_aggragate = aggragate([item[1] for item in com_history][0])
                         # print(f"aggregated {len(com_history)} frames from {com_history[0][0]} - {com_history[-1][0]} into {com_aggragate}")
@@ -97,7 +97,8 @@ if __name__ == "__main__":
                         # Check transformation with left hand
                         xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, R_TSP, t_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
-                        print(f"test coords {xsens2TSP_segments_pixel} in shape{display_frame.shape}")
+                        print(f"{xsens2TSP_segments[0]-t_TSP[0]},{xsens2TSP_segments[1]-t_TSP[2]},{xsens2TSP_segments[2]-t_TSP[1]}")
+                        print(f"test coords {xsens2TSP_segments_pixel} in shape {display_frame.shape}")
                         if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
                             cv2.drawMarker(
                                 display_frame,
