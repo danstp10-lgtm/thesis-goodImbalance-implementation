@@ -39,7 +39,7 @@ def process_CoP(raw_frame,display_frame):
         x_grid, y_grid = np.indices(raw_frame.shape)
         CoP_pixel = (int((raw_frame * x_grid).sum() / pressure_sum), int((raw_frame * y_grid).sum() / pressure_sum))
         # cv2.circle(display_frame, (CoP_pixel[1],CoP_pixel[0]), radius=1, color=COLOR_COP, thickness=-1)
-        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COP,cv2.MARKER_STAR,1,1)
+        cv2.drawMarker(display_frame,(CoP_pixel[1],CoP_pixel[0]),COLOR_COP,cv2.MARKER_STAR,1,1)
         CoP_cm = (CoP_pixel[0]*pixel_X_length,CoP_pixel[1]*pixel_Y_length)
     else:
         CoP_cm = [0,0]        
@@ -57,14 +57,15 @@ def process_BoS(raw_frame, display_frame):
         cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
     return BoS_cm
 
-def process_XCoM(latest_CoM, time_sec, R, t, R_TSP, t_TSP, display_frame):
-    latest_CoM_pos = latest_CoM[0:3]
-    latest_CoM_vel = latest_CoM[3:7]
-    xsens_XCoM = latest_CoM_pos + (latest_CoM_vel / omega_0)
+def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
+    com_pos = com[0:3]
+    com_vel = com[3:7]
+    print(f"pos{com_pos} \n vel{com_vel}")
+    xsens_XCoM = com_pos + (com_vel / omega_0)
 
     # Transform Xsens XCoM to TSP coordinates
     TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, R_TSP, t_TSP ) * 100 # transform to XCoM to TSP
-    TSP_CoM = transform_Xsens2TSP(latest_CoM_pos, R, t, R_TSP, t_TSP ) * 100 # transform to CoM to TSP
+    TSP_CoM = transform_Xsens2TSP(com_pos, R, t, R_TSP, t_TSP ) * 100 # transform to CoM to TSP
 
     # Show XCoM on display
     XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
@@ -144,6 +145,19 @@ def transform_Xsens2TSP(P_xsens, R_xv, t_xv, R_TSP, t_TSP):
     R_TSP - rotation of TSP, also get from Tundra controller
     """
     xsens_tundra = (R_xv @ P_xsens) + t_xv # Xsens point to Tundra Space
-    xsens_TSP = R_TSP.T @ (xsens_tundra - t_TSP) # Tundra point to TSP Space
+    xsens_TSP = R_TSP.T @ (t_TSP - xsens_tundra) # Tundra point to TSP Space
     return xsens_TSP
         
+def aggragate(data):
+    N = len(data)
+    # print(N)
+    # Weights increase for newer samples (e.g., [alpha^2, alpha^1, 1.0])
+    if N > 1:
+        alpha_decay=0.8
+        weights = alpha_decay ** np.arange(N - 1, -1, -1)
+        weights /= np.sum(weights)  # Normalize weights
+        aggragate_data = np.sum(data * weights[:, None], axis=0)
+        # print(f"data: {data} \n into {aggragate_data}")
+    else: 
+        return data.copy()
+    return aggragate_data
