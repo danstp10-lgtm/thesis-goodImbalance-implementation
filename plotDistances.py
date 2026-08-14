@@ -2,10 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter  # Optional: for Savitzky-Golay filtering
 
-file_path_1 = 'recordings\session_20260813_135446\session_metrics.csv'
-file_path_2 = 'recordings\session_20260813_141016\session_metrics.csv'
-file_path_3 = "recordings\session_20260813_163839\session_metrics.csv"
-df = pd.read_csv(file_path_1)
+file_path_3 = "recordings\session_20260814_104425\session_metrics.csv"
+df = pd.read_csv(file_path_3)
 df.columns = df.columns.str.strip()
 
 # start time at 0
@@ -17,6 +15,11 @@ clean_xcom = df['xcom2bos_dist_cm'].interpolate(method='linear').bfill().ffill()
 # Smoothing
 df['cop2bos_smooth'] = savgol_filter(clean_cop, window_length=11, polyorder=2)
 df['xcom2bos_smooth'] = savgol_filter(clean_xcom, window_length=11, polyorder=2)
+
+# Ensures CoP never drops below 0
+df['cop2bos_smooth'] = df['cop2bos_smooth'].clip(lower=0)
+# Ensures XCoM never drops below -5
+df['xcom2bos_smooth'] = df['xcom2bos_smooth'].clip(lower=-5)
 
 plt.plot(
     df['timecode'], 
