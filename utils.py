@@ -38,7 +38,6 @@ def process_CoP(raw_frame,display_frame):
     if pressure_sum>0:
         x_grid, y_grid = np.indices(raw_frame.shape)
         CoP_pixel = (int((raw_frame * x_grid).sum() / pressure_sum), int((raw_frame * y_grid).sum() / pressure_sum))
-        # cv2.circle(display_frame, (CoP_pixel[1],CoP_pixel[0]), radius=1, color=COLOR_COP, thickness=-1)
         cv2.drawMarker(display_frame,(CoP_pixel[1],CoP_pixel[0]),COLOR_COP,cv2.MARKER_STAR,1,1)
         CoP_cm = (CoP_pixel[0]*pixel_X_length,CoP_pixel[1]*pixel_Y_length)
     else:
@@ -52,6 +51,7 @@ def process_BoS(raw_frame, display_frame):
     if contours:
         allPts = np.vstack(contours)
         BoS_pixel = cv2.convexHull(allPts,clockwise=False).reshape(-1, 2)
+        print(f"counter-clockwise:{cv2.contourArea(allPts, oriented=True)}")
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
         # Add BoS_pixel to display
         cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
@@ -67,7 +67,7 @@ def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
     TSP_CoM = transform_Xsens2TSP(com_pos, R, t, R_TSP, t_TSP ) * 100 # transform CoM to TSP
 
     # Show XCoM on display
-    XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)]
+    XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)] 
     if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
         cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
         print("XCoM in bounds")
@@ -81,57 +81,33 @@ def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
         
     return TSP_XCoM
 
-def calculate_min_dist(BoS, CoP,XCoM):
-    distances_CoP2BoS = []
-    distances_XCoM2BoS = []
+def calculate_min_dist(BoS, CoP, XCoM):
+    BoS_arr = np.array(BoS, dtype=np.float32)
+    CoP_pt = (float(CoP[0]), float(CoP[1]))
+    XCoM_pt = (float(XCoM[0]), float(XCoM[1]))
     min_dist_CoP2BoS = None
     min_dist_XCoM2BoS = None
     if BoS: # if there are any contours
-        for i in range(len(BoS)):
-            j=i+1
-            if j>=len(BoS):
-                j=0
-            x_1, x_2 = BoS[i][0],BoS[j][0]
-            y_1, y_2 = BoS[i][1],BoS[j][1]
-            A = y_2 - y_1
-            B = x_1 - x_2
-            C = x_2*y_1-x_1*y_2
-            distances_CoP2BoS.append((A*CoP[0]+B*CoP[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
-            distances_XCoM2BoS.append((A*XCoM[0]+B*XCoM[1]+C)/(np.sqrt(np.power(A,2)+np.power(B,2))))
-            min_dist_CoP2BoS = np.min(distances_CoP2BoS) # np.where(distances_CoP2BoS > 0, distances_CoP2BoS, np.inf).argmin()
-            min_dist_XCoM2BoS = np.min(distances_XCoM2BoS) # np.where(distances_XCoM2BoS > 0, distances_XCoM2BoS, np.inf).argmin()
-            # if min_dist_CoP2BoS == np.inf:
-            #     min_val = np.min()   
+        min_dist_CoP2BoS = cv2.pointPolygonTest(BoS_arr, CoP_pt, measureDist=True) 
+        min_dist_XCoM2BoS = cv2.pointPolygonTest(BoS_arr, XCoM_pt, measureDist=True) 
     return min_dist_CoP2BoS, min_dist_XCoM2BoS
 
 def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
-    # Compute centroids
+    # Kabsch Algorithm
     centroid_xsens = np.mean(xsens_samples, axis=0)
     centroid_tundra = np.mean(tundra_samples, axis=0)
-
-    # Bring both to origin
     X = xsens_samples - centroid_xsens
     V = tundra_samples - centroid_tundra
-
-    # Compute the covariance matrix
     H = np.dot(X.T, V)
-
-    # SVD
     U, S, Vt = np.linalg.svd(H)
-
     # Validate right-handed coordinate system
     if np.linalg.det(np.dot(Vt.T, U.T)) < 0.0:
         Vt[-1, :] *= -1.0
-
-    # Optimal rotation
+    # Optimal rotation and translation
     R = np.dot(Vt.T, U.T)
-
-    # Optimal translation (depends on R, so computed after it)
     t = centroid_tundra - np.dot(R, centroid_xsens)
-
-    # RMSD
+    # similarity error
     rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
-
     return R, t, rmsd
 
 
