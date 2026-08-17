@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import numpy as np
 import csv
+import json
 
 class FileSaver:
     def __init__(self, output_dir="recordings", frames_subdir = "frames", metrics_filename="session_metrics.csv"):
@@ -39,9 +40,12 @@ class FileSaver:
                         "cop_x",
                         "cop_y",
                         "cop2bos_dist_cm",
+                        "com_x",
+                        "com_y",
                         "xcom_x",
                         "xcom_y",
                         "xcom2bos_dist_cm",
+                        "bos"
                     ]
                 )
 
@@ -49,14 +53,16 @@ class FileSaver:
         # add frames to queue from data processing script
         self.queue.put(("FRAME",(self.frame_counter, timecode, frame.copy())))
     
-    def save_metrics(self, timecode, cop=None, cop2bos_dist=None, xcom=None, xcom2bos_dist=None):
+    def save_metrics(self, timecode, cop=None, cop2bos_dist=None, com=None, xcom=None, xcom2bos_dist=None, bos=None):
         metrics_payload = {
             "frame_id": self.frame_counter,
             "timecode": timecode,
             "cop": cop,
             "cop2bos_dist": cop2bos_dist,
+            "com": com,
             "xcom": xcom,
             "xcom2bos_dist": xcom2bos_dist,
+            "bos": bos,
         }
         self.queue.put(("METRICS", metrics_payload))
 
@@ -91,6 +97,11 @@ class FileSaver:
                             if data["cop"] is not None
                             else [np.nan, np.nan]
                         )
+                        com = (
+                            data["com"]
+                            if data["com"] is not None
+                            else [np.nan, np.nan]
+                        )
                         xcom = (
                             data["xcom"]
                             if data["xcom"] is not None
@@ -107,6 +118,8 @@ class FileSaver:
                                 if data["cop2bos_dist"] is not None
                                 else np.nan
                             ),
+                            com[0],
+                            com[1],
                             xcom[0],
                             xcom[1],
                             (
@@ -115,6 +128,16 @@ class FileSaver:
                                 else np.nan
                             ),
                         ]
+                        
+                        bos_list = (
+                                data["bos"].tolist()
+                                if isinstance(data["bos"], np.ndarray)
+                                else data["bos"]
+                            )
+                        row.append(
+                            json.dumps(bos_list) if bos_list else ""
+                        )
+
                         writer.writerow(row)
                         csv_file.flush()  # Force write to disk
 

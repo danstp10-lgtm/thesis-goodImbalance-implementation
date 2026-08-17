@@ -67,30 +67,33 @@ def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
     TSP_CoM = transform_Xsens2TSP(com_pos, R, t, R_TSP, t_TSP ) * 100 # transform CoM to TSP
 
     # Show XCoM on display
-    XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)] 
-    if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
-        cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
-        print("XCoM in bounds")
+    # XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)] 
+    # if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
+    #     cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
+    #     print("XCoM in bounds")
 
     # Show CoM on display
-    CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
-    print(f"CoM pixel: {CoM_pixel}")
-    if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
-        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
-        print("CoM in bounds")
+    # CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
+    # print(f"CoM pixel: {CoM_pixel}")
+    # if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
+    #     cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
+    #     print("CoM in bounds")
         
-    return TSP_XCoM
+    return TSP_XCoM, TSP_CoM
 
-def calculate_min_dist(BoS, CoP, XCoM):
+def calculate_min_dist(BoS, CoP, CoM, XCoM):
     BoS_arr = np.array(BoS, dtype=np.float32)
     CoP_pt = (float(CoP[0]), float(CoP[1]))
+    CoM_pt = (float(CoM[0]), float(CoM[1]))
     XCoM_pt = (float(XCoM[0]), float(XCoM[1]))
     min_dist_CoP2BoS = None
+    min_dist_CoM2BoS = -1
     min_dist_XCoM2BoS = None
     if BoS: # if there are any contours
         min_dist_CoP2BoS = cv2.pointPolygonTest(BoS_arr, CoP_pt, measureDist=True) 
+        min_dist_CoM2BoS = cv2.pointPolygonTest(BoS_arr, CoM_pt, measureDist=True) 
         min_dist_XCoM2BoS = cv2.pointPolygonTest(BoS_arr, XCoM_pt, measureDist=True) 
-    return min_dist_CoP2BoS, min_dist_XCoM2BoS
+    return min_dist_CoP2BoS, min_dist_XCoM2BoS, min_dist_CoM2BoS
 
 def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     # Kabsch Algorithm

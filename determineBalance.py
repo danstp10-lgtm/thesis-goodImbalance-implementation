@@ -41,11 +41,11 @@ if __name__ == "__main__":
     ALPHA = 0.01 
     tundra_samples = []
     xsens_calibration_samples = []
-    # Tundra Y-up to Z-up matrix
+    # Swap X and Y if patches are rotated
     M_swap = np.array([
-        [1, 0, 0],  # X -> X
-        [0, 0, 1],  # Y -> Z
-        [0, 1, 0]   # Z -> Y
+        [0, 1, 0],  # X -> Y
+        [1, 0, 0],  # Y -> X
+        [0, 0, 1]   # Z -> Z
     ])
 
     try:
@@ -91,34 +91,37 @@ if __name__ == "__main__":
                         # print(np.array(com_history))
                         com_aggragate = aggragate([item[1] for item in com_history][0])
                         # print(f"aggregated {len(com_history)} frames from {com_history[0][0]} - {com_history[-1][0]} into {com_aggragate}")
-                        TSP_XCoM = process_XCoM(com_aggragate, time_sec, R, t, R_TSP, t_TSP, display_frame)
+                        TSP_XCoM, TSP_CoM = process_XCoM(com_aggragate, time_sec, R, t, R_TSP, t_TSP, display_frame)
                         com_history.clear() # clear history for next timestep                  
                         
                         # Check transformation with left hand
                         xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, R_TSP, t_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
-                        print(f"{xsens2TSP_segments[0]-t_TSP[0]},{xsens2TSP_segments[1]-t_TSP[2]},{xsens2TSP_segments[2]-t_TSP[1]}")
                         print(f"test coords {xsens2TSP_segments_pixel} in shape {display_frame.shape}")
-                        if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
-                            cv2.drawMarker(
-                                display_frame,
-                                (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
-                                color=COLOR_HAND,
-                                markerType=cv2.MARKER_CROSS,
-                                markerSize=1,
-                                thickness=1,
-                            )
+                        # if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
+                        #     cv2.drawMarker(
+                        #         display_frame,
+                        #         (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
+                        #         color=COLOR_HAND,
+                        #         markerType=cv2.MARKER_CROSS,
+                        #         markerSize=1,
+                        #         thickness=1,
+                        #     )
                         
                         # Calculate TSP metrics
                         CoP_cm = process_CoP(cached_raw_frame, display_frame)
                         BoS_cm = process_BoS(cached_raw_frame, display_frame)
                         
                         # Calculate minimum distance of CoP and XCoM to BoS boundaries in cm, margin of stability b
-                        min_dist_CoP2BoS, min_dist_XCoM2BoS = calculate_min_dist(BoS_cm, CoP_cm, TSP_XCoM)
+                        min_dist_CoP2BoS, min_dist_XCoM2BoS, min_dist_CoM2BoS = calculate_min_dist(BoS_cm, CoP_cm, TSP_CoM, TSP_XCoM)
 
                         # Save data
                         saver.save_frame(cached_raw_frame, time_sec)
-                        saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, TSP_XCoM, min_dist_XCoM2BoS)
+                        if min_dist_CoM2BoS > 0:
+                            CoM_in_BoS = TSP_CoM
+                        else:
+                            CoM_in_BoS = None
+                        saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, CoM_in_BoS, TSP_XCoM, min_dist_XCoM2BoS, BoS_cm)
                         saver.increment_frame_count()
 
                         # Output synchronized packet info
