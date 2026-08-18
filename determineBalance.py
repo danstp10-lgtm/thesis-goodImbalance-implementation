@@ -27,12 +27,9 @@ if __name__ == "__main__":
     # Visualization
     display_frame = np.zeros(cached_raw_frame.shape, np.uint8)
     COLOR_HAND = (255, 255, 255)  # Bright White
-
-    print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
     # XCoM variables
     xsens_XCoM = None
     com_history = []
-
     # Calibration parameters
     frame_counter = 0
     calibrated = False
@@ -48,6 +45,7 @@ if __name__ == "__main__":
         [0, 0, 1]   # Z -> Z
     ])
 
+    print("Starting sync between Touch Sense Patch 1|2 - 7Hz and Xsens MVN Software - 240Hz")
     try:
         while True:
             if MVN.new_data_available: # On new Xsens data
@@ -57,6 +55,7 @@ if __name__ == "__main__":
                 xsens_segments = xsens_data["segments"]
                 body_tracker_coords = v.devices["body_tracker"].get_pose_quaternion()[0:3] # Tundra tracker
                 com_history.append((time_sec, latest_xsens_CoM))
+
                 # Determine transformation parameters: R, t
                 if not calibrated:     
                     if len(xsens_calibration_samples) == calibration_samples: # Collect n samples of one Tundra and one Xsens tracker, at roughly the same place
@@ -68,14 +67,12 @@ if __name__ == "__main__":
                     elif frame_counter % sample_stride == 0 and body_tracker_coords:
                         xsens_calibration_samples.append(xsens_segments[0])
                         tundra_samples.append(body_tracker_coords)
-                        # print(frame_counter)
                     frame_counter += 1    
                 else:
                     # Compensate for drift overtime by applying R,t and comparing to actual tracker on the body 
                     xsens2tundra_segments = ((R @ xsens_segments[0]) + t)        
                     drift_error = body_tracker_coords - xsens2tundra_segments
                     t += ALPHA * drift_error
-                    # print(f"drift error:{drift_error}")
 
                     if TSP_L.frame_available and TSP_R.frame_available: # on TSP available frame compute variables
                         # Raw TSP data
@@ -86,9 +83,8 @@ if __name__ == "__main__":
 
                         # Calculate XCoM, with smoothing
                         TSP_corner = np.array(v.devices["TSP_corner"].get_pose_matrix().m) # get tundra pose matrix
-                        t_TSP = TSP_corner[0:3, 3] # convert to Z-up coordinates
+                        t_TSP = TSP_corner[0:3, 3] 
                         R_TSP = TSP_corner[0:3, 0:3] 
-                        # print(np.array(com_history))
                         com_aggragate = aggragate([item[1] for item in com_history][0])
                         # print(f"aggregated {len(com_history)} frames from {com_history[0][0]} - {com_history[-1][0]} into {com_aggragate}")
                         TSP_XCoM, TSP_CoM = process_XCoM(com_aggragate, time_sec, R, t, R_TSP, t_TSP, display_frame)
@@ -98,15 +94,15 @@ if __name__ == "__main__":
                         xsens2TSP_segments = transform_Xsens2TSP(xsens_segments[0],R, t, R_TSP, t_TSP) * 100
                         xsens2TSP_segments_pixel = [int(np.round(xsens2TSP_segments[0]/0.8)),int(np.round(xsens2TSP_segments[1]/0.6))] 
                         print(f"test coords {xsens2TSP_segments_pixel} in shape {display_frame.shape}")
-                        # if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
-                        #     cv2.drawMarker(
-                        #         display_frame,
-                        #         (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
-                        #         color=COLOR_HAND,
-                        #         markerType=cv2.MARKER_CROSS,
-                        #         markerSize=1,
-                        #         thickness=1,
-                        #     )
+                        if 0 < xsens2TSP_segments_pixel[0] < display_frame.shape[1] and 0 < xsens2TSP_segments_pixel[1] < display_frame.shape[0]:
+                            cv2.drawMarker(
+                                display_frame,
+                                (xsens2TSP_segments_pixel[0], xsens2TSP_segments_pixel[1]),
+                                color=COLOR_HAND,
+                                markerType=cv2.MARKER_CROSS,
+                                markerSize=1,
+                                thickness=1,
+                            )
                         
                         # Calculate TSP metrics
                         CoP_cm = process_CoP(cached_raw_frame, display_frame)
@@ -135,7 +131,7 @@ if __name__ == "__main__":
                 (3 * 224, 2 * 224),
                 interpolation=cv2.INTER_NEAREST,
             )
-            cv2.imshow("Synchronized Display", display_resized)
+            cv2.imshow("TSP live display", display_resized)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
