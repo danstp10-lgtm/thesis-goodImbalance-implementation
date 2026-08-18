@@ -27,10 +27,25 @@ def get_raw_frames(TSP_L,TSP_R):
         raw_frame_R = TSP_R.readFrame().astype(np.uint8)
 
         # Denoising
-        raw_frame_L = cv2.fastNlMeansDenoising(raw_frame_L, h=10)
-        raw_frame_R = cv2.fastNlMeansDenoising(raw_frame_R, h=10)
-        # raw_frame_L = median_filter(raw_frame_L, size=4)
-        # raw_frame_R = median_filter(raw_frame_R, size=4)
+        # Gausian, best 
+        sigma = 6 
+        raw_frame_L = cv2.GaussianBlur(raw_frame_L, (5, 5), sigma)
+        raw_frame_R = cv2.GaussianBlur(raw_frame_R, (5, 5), sigma)
+        
+        # Non-Local Means (NLM)
+        # raw_frame_L = cv2.fastNlMeansDenoising(raw_frame_L, h=50, templateWindowSize=7, searchWindowSize=21)
+        # raw_frame_R = cv2.fastNlMeansDenoising(raw_frame_R, h=50, templateWindowSize=7, searchWindowSize=21)
+
+        # Median filter
+        # 1
+        # raw_frame_L = median_filter(raw_frame_L, size=6)
+        # raw_frame_R = median_filter(raw_frame_R, size=6)
+        # 2
+        # kernel_size = 3  
+        # raw_frame_L = cv2.medianBlur(raw_frame_L, kernel_size)
+        # raw_frame_R = cv2.medianBlur(raw_frame_R, kernel_size)
+
+
         return raw_frame_L, raw_frame_R
 
 def process_CoP(raw_frame,display_frame):
@@ -51,7 +66,6 @@ def process_BoS(raw_frame, display_frame):
     if contours:
         allPts = np.vstack(contours)
         BoS_pixel = cv2.convexHull(allPts,clockwise=False).reshape(-1, 2)
-        print(f"counter-clockwise:{cv2.contourArea(allPts, oriented=True)}")
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
         # Add BoS_pixel to display
         cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
