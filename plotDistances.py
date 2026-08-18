@@ -1,10 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter  # Optional: for Savitzky-Golay filtering
-from numpy import load
 import numpy as np
 import ast
 from matplotlib.patches import Polygon
+from scipy.signal import savgol_filter  # Optional: for Savitzky-Golay filtering
 from scipy.spatial import ConvexHull
 
 def make_distance_plot(df,ax):
@@ -13,8 +12,8 @@ def make_distance_plot(df,ax):
     clean_xcom = df['xcom2bos_dist_cm'].interpolate(method='linear').bfill().ffill()
 
     # Smoothing
-    df['cop2bos_smooth'] = savgol_filter(clean_cop, window_length=11, polyorder=2)
-    df['xcom2bos_smooth'] = savgol_filter(clean_xcom, window_length=11, polyorder=2)
+    df['cop2bos_smooth'] = savgol_filter(clean_cop, window_length=9, polyorder=2)
+    df['xcom2bos_smooth'] = savgol_filter(clean_xcom, window_length=9, polyorder=2)
 
     # Remove CoP below 0
     df['cop2bos_smooth'] = df['cop2bos_smooth'].clip(lower=0)
@@ -87,27 +86,55 @@ def make_distance_plot(df,ax):
 def make_CoM_path_plot(df,ax):
     com_x = df["com_x"].interpolate(method='linear').bfill().ffill()
     com_y = df["com_y"].interpolate(method='linear').bfill().ffill()
-    points = np.column_stack((com_x, com_y))
-    hull = ConvexHull(points)
+    def parse_bos(val):
+        # Check if the value is missing or not a string
+        if pd.isna(val) or not isinstance(val, str):
+            return []
+        try:
+            return ast.literal_eval(val)
+        except (ValueError, SyntaxError):
+            return []
+    df['bos_parsed'] = df['bos'].apply(parse_bos)
+
+    com_points = np.column_stack((com_x, com_y))
+    hull = ConvexHull(com_points)
+
+    # plot bos
+    for bos_points in df['bos_parsed']:
+        # Ensure there are at least 3 bos_points to form a closed polygon
+        if len(bos_points) >= 3:
+            poly = Polygon(
+                bos_points, 
+                closed=True, 
+                facecolor='#377aed', 
+                edgecolor='purple', 
+                alpha=0.01  # Translucency (0 = fully transparent, 1 = opaque)
+            )
+            ax.add_patch(poly)
+        elif len(bos_points) == 2:
+            # Fallback for 2-point lines (e.g., frames 0 & 3 in your sample data)
+            x_coords, y_coords = zip(*bos_points)
+            ax.plot(x_coords, y_coords, color='purple', alpha=0.01, linestyle='--')
 
     # plot points and convex hull
     ax.scatter(com_x, com_y, c='#37ed4c', label=f'CoM', alpha=0.7, edgecolors='k')
     for simplex in hull.simplices:
-        ax.plot(points[simplex, 0], points[simplex, 1], 'r--', alpha=0.8)
-    ax.fill(points[hull.vertices, 0], points[hull.vertices, 1], 'red', alpha=0.15, label=f'Convex Hull Area: {hull.volume:.2f} cm^2')
+        ax.plot(com_points[simplex, 0], com_points[simplex, 1], 'r--', alpha=0.8)
+    ax.fill(com_points[hull.vertices, 0], com_points[hull.vertices, 1], 'red', alpha=0.15, label=f'Convex Hull Area: {hull.volume:.2f} cm^2')
 
     ax.set_title('CoM within BoS')
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
-    ax.set_xlim([0, 43])   # Replace with your desired [xmin, xmax]
-    ax.set_ylim([0, 17])
+    # ax.set_xlim([0, 46])   # Replace with your desired [xmin, xmax]
+    # ax.set_ylim([0, 18])
     ax.invert_yaxis()
     ax.legend(loc='upper right', frameon=True, fontsize=10)
     ax.grid(True, linestyle=':', alpha=0.6)
 
-file_path = "recordings\session_20260817_142647\session_metrics.csv"
+file_path_1 = "recordings\session_20260817_142128\session_metrics.csv"
+file_path_2 = "recordings\session_20260817_142647\session_metrics.csv"
 # frames_path = "recordings\session_20260814_104425\\frames"
-df = pd.read_csv(file_path)
+df = pd.read_csv(file_path_2)
 df.columns = df.columns.str.strip()
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 6))
