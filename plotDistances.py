@@ -23,7 +23,7 @@ def make_distance_plot(df,ax):
     ax.plot(
         df['timecode'], 
         df['cop2bos_smooth'], 
-        label='COP to BOS (Smoothed)', 
+        label='b_CoP', 
         color='#F2340F', 
         linewidth=2
     )
@@ -31,7 +31,7 @@ def make_distance_plot(df,ax):
     ax.plot(
         df['timecode'], 
         df['xcom2bos_smooth'], 
-        label='XCoM to BOS (Smoothed)', 
+        label='b_XCoM', 
         color='#F2C80F', 
         linewidth=2
     )
@@ -49,7 +49,7 @@ def make_distance_plot(df,ax):
         color='#2ca02c',  # Green
         alpha=0.3,         # Transparency (30%)
         interpolate=True,  
-        label='case A: stable'
+        label='A'
     )
 
     # Case B: CoM < CoP < XcoM < BoSmax
@@ -61,7 +61,7 @@ def make_distance_plot(df,ax):
         color='#ffe119',  # Yellow
         alpha=0.35,        # Transparency (35%)
         interpolate=True,
-        label='case B: unstable'
+        label='B'
     )
 
     # Case C: XcoM > BoSmax
@@ -73,14 +73,14 @@ def make_distance_plot(df,ax):
         color='#ff2617',  # Red
         alpha=0.35,        # Transparency (35%)
         interpolate=True,
-        label='case C: fall iminent'
+        label='C'
     )
     
-    ax.set_title('COP & XCoM Distance to Base of Support (Smoothed)')
+    ax.set_title('CoP & XCoM Distance to Base of Support')
     ax.set_xlabel('Timecode (seconds)')
     ax.set_ylabel('Distance (cm)')
     ax.grid(True, linestyle='--', alpha=0.5)
-    ax.legend(loc='upper right', frameon=True, fontsize=10)
+    ax.legend(loc='lower left', frameon=True, fontsize=10)
     ax.ticklabel_format(useOffset=False, style='plain', axis='x')
 
 def make_CoM_path_plot(df,ax):
@@ -128,16 +128,23 @@ def make_CoM_path_plot(df,ax):
     # ax.set_xlim([0, 46])   # Replace with your desired [xmin, xmax]
     # ax.set_ylim([0, 18])
     ax.invert_yaxis()
-    ax.legend(loc='upper right', frameon=True, fontsize=10)
+    ax.legend(loc='lower left', frameon=True, fontsize=10)
     ax.grid(True, linestyle=':', alpha=0.6)
 
 file_path_1 = "recordings\session_20260817_142128\session_metrics.csv"
 file_path_2 = "recordings\session_20260817_142647\session_metrics.csv"
 # frames_path = "recordings\session_20260814_104425\\frames"
-df = pd.read_csv(file_path_2)
+df = pd.read_csv(file_path_1)
 df.columns = df.columns.str.strip()
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+fig, axes = plt.subplots(
+        2, 1, 
+        figsize=(10, 6),
+        gridspec_kw={
+        'width_ratios': [1],
+        'height_ratios': [1,2]
+        }
+    )
 make_distance_plot(df,axes[0])
 make_CoM_path_plot(df,axes[1])
 plt.tight_layout()
