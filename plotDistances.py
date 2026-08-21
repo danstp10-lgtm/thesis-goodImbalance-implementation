@@ -9,15 +9,18 @@ from scipy.spatial import ConvexHull
 def make_distance_plot(df,ax):
     df['timecode'] = df['timecode'] - df['timecode'].iloc[0] # start time at 0
     clean_cop = df['cop2bos_dist_cm'].interpolate(method='linear').bfill().ffill()
+    clean_com = df['com2bos_dist_cm'].interpolate(method='linear').bfill().ffill()
     clean_xcom = df['xcom2bos_dist_cm'].interpolate(method='linear').bfill().ffill()
 
     # Smoothing
-    df['cop2bos_smooth'] = savgol_filter(clean_cop, window_length=9, polyorder=2)
-    df['xcom2bos_smooth'] = savgol_filter(clean_xcom, window_length=9, polyorder=2)
+    df['cop2bos_smooth'] = savgol_filter(clean_cop, window_length=6, polyorder=2)
+    df['com2bos_smooth'] = savgol_filter(clean_com, window_length=6, polyorder=2)
+    df['xcom2bos_smooth'] = savgol_filter(clean_xcom, window_length=6, polyorder=2)
 
     # Remove CoP below 0
-    df['cop2bos_smooth'] = df['cop2bos_smooth'].clip(lower=0)
+    df['cop2bos_smooth'] = df['cop2bos_smooth'].clip(lower=-5)
     # Remove XCoM velow -5
+    df['com2bos_smooth'] = df['com2bos_smooth'].clip(lower=-5)
     df['xcom2bos_smooth'] = df['xcom2bos_smooth'].clip(lower=-5)
 
     ax.plot(
@@ -25,6 +28,14 @@ def make_distance_plot(df,ax):
         df['cop2bos_smooth'], 
         label='b_CoP', 
         color='#F2340F', 
+        linewidth=2
+    )
+
+    ax.plot(
+        df['timecode'], 
+        df['com2bos_smooth'], 
+        label='b_CoM', 
+        color='#039e00', 
         linewidth=2
     )
 
@@ -133,8 +144,19 @@ def make_CoM_path_plot(df,ax):
 
 file_path_1 = "recordings\session_20260817_142128\session_metrics.csv"
 file_path_2 = "recordings\session_20260817_142647\session_metrics.csv"
+file_path_3 = "recordings\session_20260819_114549\session_metrics.csv"
+file_path_4 = "recordings\session_20260819_115434\session_metrics.csv"
+file_path_5 = "recordings\session_20260819_131339\session_metrics.csv"
+file_path_6 = "recordings\session_20260819_131603\session_metrics.csv"
+file_path_7 = "recordings\session_20260819_132657\session_metrics.csv"
+
+file_path_8 = "recordings\session_20260821_103622\session_metrics.csv"
+
+file_path_9 = "recordings\session_20260821_134854\session_metrics.csv"
+file_path_10 = "recordings\session_20260821_135127\session_metrics.csv"
+file_path_11 = "recordings\session_20260821_141750\session_metrics.csv"
 # frames_path = "recordings\session_20260814_104425\\frames"
-df = pd.read_csv(file_path_1)
+df = pd.read_csv(file_path_10)
 df.columns = df.columns.str.strip()
 
 fig, axes = plt.subplots(

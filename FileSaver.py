@@ -42,6 +42,7 @@ class FileSaver:
                         "cop2bos_dist_cm",
                         "com_x",
                         "com_y",
+                        "com2bos_dist_cm",
                         "xcom_x",
                         "xcom_y",
                         "xcom2bos_dist_cm",
@@ -53,13 +54,14 @@ class FileSaver:
         # add frames to queue from data processing script
         self.queue.put(("FRAME",(self.frame_counter, timecode, frame.copy())))
     
-    def save_metrics(self, timecode, cop=None, cop2bos_dist=None, com=None, xcom=None, xcom2bos_dist=None, bos=None):
+    def save_metrics(self, timecode, cop=None, cop2bos_dist=None, com=None, com2bos_dist=None, xcom=None, xcom2bos_dist=None, bos=None):
         metrics_payload = {
             "frame_id": self.frame_counter,
             "timecode": timecode,
             "cop": cop,
             "cop2bos_dist": cop2bos_dist,
             "com": com,
+            "com2bos_dist": com2bos_dist,
             "xcom": xcom,
             "xcom2bos_dist": xcom2bos_dist,
             "bos": bos,
@@ -120,6 +122,11 @@ class FileSaver:
                             ),
                             com[0],
                             com[1],
+                            (
+                                data["com2bos_dist"]
+                                if data["com2bos_dist"] is not None
+                                else np.nan
+                            ),
                             xcom[0],
                             xcom[1],
                             (

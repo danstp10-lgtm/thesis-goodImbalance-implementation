@@ -76,7 +76,7 @@ if __name__ == "__main__":
                         CoM_in_BoS = TSP_CoM
                     else:
                         CoM_in_BoS = None
-                    saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, CoM_in_BoS, TSP_XCoM, min_dist_XCoM2BoS, BoS_cm)
+                    saver.save_metrics(time_sec, CoP_cm, min_dist_CoP2BoS, CoM_in_BoS, min_dist_CoM2BoS, TSP_XCoM, min_dist_XCoM2BoS, BoS_cm)
                     saver.increment_frame_count()
 
                     # Output synchronized packet info
