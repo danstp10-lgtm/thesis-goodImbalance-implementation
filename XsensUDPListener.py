@@ -3,6 +3,7 @@ import numpy as np
 import struct
 import threading
 import time
+import re
 
 class XsensUDPListener:
     def __init__(self, port=9764, host='127.0.0.1', packet_length=2000):
@@ -10,9 +11,11 @@ class XsensUDPListener:
         self.port=port
         self.packet_length=packet_length
 
-        self.latest_com=None
-        self.segments=None # maybe rename to hands later if used for coord sync
-        self.latest_timecode=0.0
+        self.latest_com = None
+        self.segments = None # maybe rename to hands later if used for coord sync
+        self.tsp_corner = None
+        self.tsp_flag = False
+        self.latest_timecode = 0.0
         self.new_data_available=False
 
         self._lock = threading.Lock()
@@ -37,16 +40,22 @@ class XsensUDPListener:
                 pos, ori, vel, last_received, timecode, new_packet_flag, last_message_type = self.parse_packet(data, last_received, last_message_type)  
                 if new_packet_flag:
                     with self._lock:
-                        self.latest_timecode = timecode
-                        if last_message_type == 24:
+                        if last_message_type == 25:
+                            match = re.search(r'(\d{2}):(\d{2}):(\d{2})\.(\d{3})', timecode)
+                            hours = int(match.group(1))
+                            minutes = int(match.group(2))
+                            seconds = int(match.group(3))
+                            milliseconds = int(match.group(4))
+                            # Convert to total seconds float
+                            timecode = hours * 3600.0 + minutes * 60.0 + seconds + (milliseconds / 1000.0)
+                            self.latest_timecode = timecode
+                        elif last_message_type == 24:
                             self.latest_com = np.asarray([pos[0],pos[1],pos[2],vel[0],vel[1],vel[2]]) # get x and y axis coordinates
-                        elif last_message_type == 2:
-                            self.segments = pos
-                        elif last_message_type == 21:
-                            self.segments = pos
-                        elif last_message_type == 23:
-                            self.segments = pos 
-                            
+                        elif last_message_type == 2 and len(pos)>0: 
+                            if self.tsp_flag:
+                                self.tsp_corner = (np.array([pos[0][0],pos[0][1],pos[0][2]]),ori[0])
+                            else:
+                                self.segments = pos[14]
                         self.new_data_available = True
             # except Exception as e:
             #     print(e.args)
@@ -57,6 +66,7 @@ class XsensUDPListener:
             self.new_data_available=False
             return {
                 "com":self.latest_com,
+                "tsp_corner":self.tsp_corner,
                 "segments":self.segments,
                 "timecode":self.latest_timecode
            }
@@ -76,7 +86,7 @@ class XsensUDPListener:
         sample_counter = struct.unpack('>I', message[6:10])[0] + 1
         datagram_counter = f"{message[10]:b}"
         num_segments = int(message[11])
-        timecode = float(struct.unpack('>I', message[12:16])[0])
+        timecode = self.latest_timecode
         vel = np.array([])
         pos = np.array([])
         ori = np.array([])
@@ -84,55 +94,34 @@ class XsensUDPListener:
         # Check duplicate package
         if sample_counter == last_received and last_message_type == message_type:
             new_packet_flag = 0
-            return pos, ori, sample_counter, timecode, new_packet_flag, message_type
+            return pos, ori, vel, last_received, timecode, new_packet_flag, last_message_type
         else:
             new_packet_flag = 1
 
         # Payload
         header_length = 24
-        if message_type == 2: # Quaternion 23 main segment data
-            segments = [14,10] # choose which segments to send
-            packet_size = 32 
-            pos = np.zeros((2, 3))
-            ori = np.zeros((2, 4))
+        if message_type == 2: # Quaternion of TSP tracker
+            if num_segments == 1:
+                self.tsp_flag = True
+            else:
+                self.tsp_flag = False
+            segments = list(range(num_segments)) # choose which segments to send
+            packet_size = 32
+            pos = np.zeros((num_segments,3))
+            ori = np.zeros((num_segments,4))
             for s in range(len(segments)):
                 start = header_length + packet_size*segments[s] 
                 floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[0:3]
-                ori[s, :] = floats[3:7]
-        elif message_type == 3: # Point Data, likely no Hand
-            packet_size = 16
-            pos = np.zeros((num_segments, 3))
-            for s in range(num_segments):
-                start = header_length + s*packet_size
-                floats = struct.unpack('>3f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[0:3]
-        elif message_type == 21:
-            segments = [14,10] # choose which segments to send
-            packet_size = 40 
-            pos = np.zeros((2, 3))
-            # ori = np.zeros((2, 4))
-            for s in range(len(segments)):
-                start = header_length + packet_size*segments[s] 
-                floats = struct.unpack('>9f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[0:3]
-                # ori[s, :] = floats[3:7]
-        elif message_type == 23:
-            segments = [14,10] # choose which segments to send
-            packet_size = 68 
-            pos = np.zeros((2, 3))
-            # ori = np.zeros((2, 4))
-            for s in range(len(segments)):
-                start = header_length + packet_size*segments[s] 
-                floats = struct.unpack('>16f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[3:7]
-                # ori[s, :] = floats[3:7]
+                pos[s,:] = floats[0:3]
+                ori[s,:] = floats[3:7]
         elif message_type == 24: # CoM data
             packet_size = 36
             start = header_length
             floats = struct.unpack('>9f', message[start : start + packet_size])
             pos = floats[0:3]
             vel = floats[4:7]
+        elif message_type == 25:
+            timecode = message[25:].decode('ascii', errors='ignore').strip()
         else:
             new_packet_flag = 1
 
@@ -141,13 +130,12 @@ class XsensUDPListener:
         #     f"sample_counter: {sample_counter}\n"
         #     f"datagram_counter: {datagram_counter}\n"
         #     f"num_segments: {num_segments}\n"
-        #     f"timecode: {timecode:.0f}\n"
+        #     f"timecode: {timecode}\n"
         #     f"Data: {pos}\n")
 
         return pos, ori, vel, sample_counter, timecode, new_packet_flag, message_type
 
     def close(self):
-            """Gracefully closes the socket and stops the UDP listener thread."""
             self._running = False
             try:
                 self.socket.close()
@@ -165,7 +153,7 @@ def main():
     try:
         while True:
             new_data = MVN.get_latest_data()
-            print(new_data)
+            # print(new_data)
             time.sleep(0.005)
 
     except KeyboardInterrupt:
