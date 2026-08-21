@@ -28,7 +28,7 @@ def get_raw_frames(TSP_L,TSP_R):
 
         # Denoising
         # Gausian, best 
-        sigma = 6 
+        sigma = 4 
         raw_frame_L = cv2.GaussianBlur(raw_frame_L, (5, 5), sigma)
         raw_frame_R = cv2.GaussianBlur(raw_frame_R, (5, 5), sigma)
         
@@ -71,27 +71,26 @@ def process_BoS(raw_frame, display_frame):
         cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
     return BoS_cm
 
-def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
+def process_XCoM(com, time_sec, R_TSP, t_TSP, display_frame):
     com_pos = com[0:3]
     com_vel = com[3:7]
     xsens_XCoM = com_pos + (com_vel / omega_0)
-
     # Transform Xsens XCoM to TSP coordinates
-    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R, t, R_TSP, t_TSP ) * 100 # transform XCoM to TSP
-    TSP_CoM = transform_Xsens2TSP(com_pos, R, t, R_TSP, t_TSP ) * 100 # transform CoM to TSP
+    TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R_TSP, t_TSP ) * 100 # transform XCoM to TSP
+    TSP_CoM = transform_Xsens2TSP(com_pos, R_TSP, t_TSP ) * 100 # transform CoM to TSP
 
     # Show XCoM on display
-    # XCoM_pixel = [round(TSP_XCoM[0]/0.8),round(TSP_XCoM[1]/0.6)] 
-    # if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
-    #     cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
-    #     print("XCoM in bounds")
+    XCoM_pixel = [int(TSP_XCoM[0]/0.8),int(TSP_XCoM[1]/0.6)] 
+    if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
+        print("XCoM in bounds")
 
     # Show CoM on display
-    # CoM_pixel = [round(TSP_CoM[0]/0.8), round(TSP_CoM[1]/0.6)]
+    CoM_pixel = [int(TSP_CoM[0]/0.8), int(TSP_CoM[1]/0.6)]
     # print(f"CoM pixel: {CoM_pixel}")
-    # if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
-    #     cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
-    #     print("CoM in bounds")
+    if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
+        print("CoM in bounds")
         
     return TSP_XCoM, TSP_CoM
 
@@ -109,36 +108,35 @@ def calculate_min_dist(BoS, CoP, CoM, XCoM):
         min_dist_XCoM2BoS = cv2.pointPolygonTest(BoS_arr, XCoM_pt, measureDist=True) 
     return min_dist_CoP2BoS, min_dist_XCoM2BoS, min_dist_CoM2BoS
 
-def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
-    # Kabsch Algorithm
-    centroid_xsens = np.mean(xsens_samples, axis=0)
-    centroid_tundra = np.mean(tundra_samples, axis=0)
-    X = xsens_samples - centroid_xsens
-    V = tundra_samples - centroid_tundra
-    H = np.dot(X.T, V)
-    U, S, Vt = np.linalg.svd(H)
-    # Validate right-handed coordinate system
-    if np.linalg.det(np.dot(Vt.T, U.T)) < 0.0:
-        Vt[-1, :] *= -1.0
-    # Optimal rotation and translation
-    R = np.dot(Vt.T, U.T)
-    t = centroid_tundra - np.dot(R, centroid_xsens)
-    # similarity error
-    rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
-    return R, t, rmsd
+# def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
+#     # Kabsch Algorithm
+#     centroid_xsens = np.mean(xsens_samples, axis=0)
+#     centroid_tundra = np.mean(tundra_samples, axis=0)
+#     X = xsens_samples - centroid_xsens
+#     V = tundra_samples - centroid_tundra
+#     H = np.dot(X.T, V)
+#     U, S, Vt = np.linalg.svd(H)
+#     # Validate right-handed coordinate system
+#     if np.linalg.det(np.dot(Vt.T, U.T)) < 0.0:
+#         Vt[-1, :] *= -1.0
+#     # Optimal rotation and translation
+#     R = np.dot(Vt.T, U.T)
+#     t = centroid_tundra - np.dot(R, centroid_xsens)
+#     # similarity error
+#     rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
+#     return R, t, rmsd
 
 
-def transform_Xsens2TSP(P_xsens, R_xv, t_xv, R_TSP, t_TSP):
+def transform_Xsens2TSP(P_xsens, R_TSP, t_TSP):
     """
     Transforms a 3D point from Xsens space directly to TSP space.
     P_xsense - point in Xsens space
-    R_xv - rotation matrix Xsens to Tundra
-    t_xv - trainslation Xsens to Tundra
-    t_TSP - origin of TSP, marked by third Tundra controller
+    t_TSP - origin of TSP, marked by Tundra controller
     R_TSP - rotation of TSP, also get from Tundra controller
     """
-    xsens_tundra = (R_xv @ P_xsens) + t_xv # Xsens point to Tundra Space
-    xsens_TSP = R_TSP.T @ (xsens_tundra - t_TSP) # Tundra point to TSP Space
+    xsens_TSP = P_xsens-t_TSP
+    xsens_TSP[1] = 0.114-xsens_TSP[1]
+    # print(f"P_xsens{P_xsens}-t_TSP{t_TSP} = {xsens_TSP}")
     return xsens_TSP
         
 def aggragate(data):
