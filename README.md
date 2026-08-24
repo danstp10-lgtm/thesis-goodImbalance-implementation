@@ -31,8 +31,11 @@ Depending on hardware configuration some settings may have to be adjusted.
 By default all data from a capture session is saved to a recordings folder with a unique identifier based on time of capture. The saved data includes timestamped pressure sensing frames and bio model metrics.
 The data consists of a timeseries min distance comparison of the Center of Pressure and Extrapolated Center of Mass[[2]](#2) and a variability plot showing area within the Base of Support travelled during performance.
 
+![data_example1](images\dist+path_builtin_chair.png)
+![data_example2](images\dist+path_builtin4.png)
+
 ## References
-<a id="1"></a> 
+<a id="1">[1]</a> 
 link to thesis
 
 <a id="2">[2]</a> 
