@@ -20,7 +20,7 @@ Run `pip install -r requirements.txt`
 - 2 Touch Sensitive Patches
 
 #### Setup
-![Setup image](images\tracking_prototype_table2_cropped.jpeg)
+![Setup image](https://github.com/danstp10-lgtm/thesis-goodImbalance-implementation/blob/xsens-steamvr-custom/images/tracking_prototype_table2_cropped.jpeg)
 
 
 ## Usage
