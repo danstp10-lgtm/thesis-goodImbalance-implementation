@@ -20,7 +20,7 @@ Run `pip install -r requirements.txt`
 - 2 Touch Sensitive Patches
 
 #### Setup
-![Setup image](https://github.com/danstp10-lgtm/thesis-goodImbalance-implementation/blob/xsens-steamvr-custom/images/tracking_prototype_table2_cropped.jpeg)
+<img width="1918" height="943" alt="Image" src="images\tracking_prototype_table2_cropped.jpeg" />
 
 
 ## Usage
@@ -31,8 +31,8 @@ Depending on hardware configuration some settings may have to be adjusted.
 By default all data from a capture session is saved to a recordings folder with a unique identifier based on time of capture. The saved data includes timestamped pressure sensing frames and bio model metrics.
 The data consists of a timeseries min distance comparison of the Center of Pressure and Extrapolated Center of Mass[[2]](#2) and a variability plot showing area within the Base of Support travelled during performance.
 
-![data_example1](images\dist+path_builtin_chair.png)
-![data_example2](images\dist+path_builtin4.png)
+<img width="1918" height="943" alt="Image" src="images\dist+path_builtin_chair.png"/>
+<img width="1918" height="943" alt="Image" src="images\dist+path_builtin4.png" />
 
 ## References
 <a id="1">[1]</a> 
