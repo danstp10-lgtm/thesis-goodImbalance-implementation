@@ -76,7 +76,6 @@ class FileSaver:
             writer = csv.writer(csv_file)
             while self._running or not self.queue.empty():
                 try:
-                    # print(self.queue.get())
                     item_type, payload = self.queue.get(timeout=0.1)
 
                     if item_type == "FRAME":

@@ -4,16 +4,15 @@ import cv2
 from cv2 import drawContours
 import numpy as np
 from scipy.ndimage import binary_erosion
-from scipy.ndimage import median_filter
-from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation as R
 
 from support_functions import *
 
-# # spacing 8,6mm
+# spacing 8,6mm
 pixel_X_length=0.8
 pixel_Y_length=0.6
 
+# XCoM parameters, change based on planet and arm length
 omega_0 = np.sqrt(9.81/0.6)
 
 COLOR_COP = (0, 0, 255)  # Bright Red
@@ -22,7 +21,7 @@ COLOR_COM = (0, 255, 0)  # Bright Green
 COLOR_XCOM = (0, 255, 255)  # Bright Yellow
 
 def get_raw_frames(TSP_L,TSP_R):
-    # Get raw pressure data
+        # Get raw pressure data
         raw_frame_L = TSP_L.readFrame().astype(np.uint8)
         raw_frame_R = TSP_R.readFrame().astype(np.uint8)
 
@@ -45,7 +44,6 @@ def get_raw_frames(TSP_L,TSP_R):
         # raw_frame_L = cv2.medianBlur(raw_frame_L, kernel_size)
         # raw_frame_R = cv2.medianBlur(raw_frame_R, kernel_size)
 
-
         return raw_frame_L, raw_frame_R
 
 def process_CoP(raw_frame,display_frame):
@@ -67,15 +65,13 @@ def process_BoS(raw_frame, display_frame):
         allPts = np.vstack(contours)
         BoS_pixel = cv2.convexHull(allPts,clockwise=False).reshape(-1, 2)
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
-        # Add BoS_pixel to display
-        cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
+        cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1) # add BoS_pixel to display
     return BoS_cm
 
 def process_XCoM(com, time_sec, R_TSP, t_TSP, display_frame):
     com_pos = com[0:3]
     com_vel = com[3:7]
     xsens_XCoM = com_pos + (com_vel / omega_0)
-    # Transform Xsens XCoM to TSP coordinates
     TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R_TSP, t_TSP ) * 100 # transform XCoM to TSP
     TSP_CoM = transform_Xsens2TSP(com_pos, R_TSP, t_TSP ) * 100 # transform CoM to TSP
 
@@ -108,35 +104,9 @@ def calculate_min_dist(BoS, CoP, CoM, XCoM):
         min_dist_XCoM2BoS = cv2.pointPolygonTest(BoS_arr, XCoM_pt, measureDist=True) 
     return min_dist_CoP2BoS, min_dist_XCoM2BoS, min_dist_CoM2BoS
 
-# def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
-#     # Kabsch Algorithm
-#     centroid_xsens = np.mean(xsens_samples, axis=0)
-#     centroid_tundra = np.mean(tundra_samples, axis=0)
-#     X = xsens_samples - centroid_xsens
-#     V = tundra_samples - centroid_tundra
-#     H = np.dot(X.T, V)
-#     U, S, Vt = np.linalg.svd(H)
-#     # Validate right-handed coordinate system
-#     if np.linalg.det(np.dot(Vt.T, U.T)) < 0.0:
-#         Vt[-1, :] *= -1.0
-#     # Optimal rotation and translation
-#     R = np.dot(Vt.T, U.T)
-#     t = centroid_tundra - np.dot(R, centroid_xsens)
-#     # similarity error
-#     rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
-#     return R, t, rmsd
-
-
 def transform_Xsens2TSP(P_xsens, R_TSP, t_TSP):
-    """
-    Transforms a 3D point from Xsens space directly to TSP space.
-    P_xsense - point in Xsens space
-    t_TSP - origin of TSP, marked by Tundra controller
-    R_TSP - rotation of TSP, also get from Tundra controller
-    """
     xsens_TSP = P_xsens-t_TSP
     xsens_TSP[1] = 0.114-xsens_TSP[1]
-    # print(f"P_xsens{P_xsens}-t_TSP{t_TSP} = {xsens_TSP}")
     return xsens_TSP
         
 def aggragate(data):
@@ -144,9 +114,8 @@ def aggragate(data):
     if N > 1:
         alpha_decay=0.8
         weights = alpha_decay ** np.arange(N - 1, -1, -1)
-        weights /= np.sum(weights)  # Normalize weights
+        weights /= np.sum(weights)  # normalize weights
         aggragate_data = np.sum(data * weights[:, None], axis=0)
-        # print(f"data: {data} \n into {aggragate_data}")
     else: 
         return data.copy()
     return aggragate_data

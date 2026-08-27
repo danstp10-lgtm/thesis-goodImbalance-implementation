@@ -33,7 +33,7 @@ class XsensUDPListener:
         last_received = None
         last_message_type = None
         while self._running:
-            # try:
+            try:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
@@ -57,9 +57,9 @@ class XsensUDPListener:
                             else:
                                 self.segments = pos[14]
                         self.new_data_available = True
-            # except Exception as e:
-            #     print(e.args)
-            #     time.sleep(0.001)
+            except Exception as e:
+                print(e.args)
+                time.sleep(0.001)
 
     def get_latest_data(self):
         with self._lock:
@@ -100,12 +100,12 @@ class XsensUDPListener:
 
         # Payload
         header_length = 24
-        if message_type == 2: # Quaternion of TSP tracker
-            if num_segments == 1:
+        if message_type == 2: # skeleton segment and object data
+            if num_segments == 1: # TSP tracker check
                 self.tsp_flag = True
             else:
                 self.tsp_flag = False
-            segments = list(range(num_segments)) # choose which segments to send
+            segments = list(range(num_segments))
             packet_size = 32
             pos = np.zeros((num_segments,3))
             ori = np.zeros((num_segments,4))
@@ -149,13 +149,10 @@ class XsensUDPListener:
 def main():
     MVN = XsensUDPListener(host="127.0.0.1", port=9764)
     print("Listening for Xsens UDP stream...")
-
     try:
         while True:
             new_data = MVN.get_latest_data()
-            # print(new_data)
             time.sleep(0.005)
-
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
