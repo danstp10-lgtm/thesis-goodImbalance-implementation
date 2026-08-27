@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ast
 from matplotlib.patches import Polygon
-from scipy.signal import savgol_filter  # Optional: for Savitzky-Golay filtering
+from scipy.signal import savgol_filter 
 from scipy.spatial import ConvexHull
 
 def make_distance_plot(df,ax):
@@ -20,23 +20,11 @@ def make_distance_plot(df,ax):
     # Remove XCoM velow -5
     df['xcom2bos_smooth'] = df['xcom2bos_smooth'].clip(lower=-5)
 
-    ax.plot(
-        df['timecode'], 
-        df['cop2bos_smooth'], 
-        label='b_CoP', 
-        color='#F2340F', 
-        linewidth=2
-    )
+    # Plot distances
+    ax.plot(df['timecode'], df['cop2bos_smooth'], label='b_CoP', color='#F2340F', linewidth=2)
+    ax.plot(df['timecode'], df['xcom2bos_smooth'], label='b_XCoM', color='#F2C80F', linewidth=2)
 
-    ax.plot(
-        df['timecode'], 
-        df['xcom2bos_smooth'], 
-        label='b_XCoM', 
-        color='#F2C80F', 
-        linewidth=2
-    )
-
-    # Semi transparent raw data points behind smoothed lines to visually compare
+    # Semi transparent raw data points
     # ax.plot(df['timecode'], df['cop2bos_dist_cm'], color='#1f77b4', alpha=0.25, linestyle='--', label='COP (Raw)')
     # ax.plot(df['timecode'], df['xcom2bos_dist_cm'], color='#ff7f0e', alpha=0.25, linestyle='--', label='XCoM (Raw)')
 
@@ -76,6 +64,7 @@ def make_distance_plot(df,ax):
         label='C'
     )
     
+    # Legend
     ax.set_title('CoP & XCoM Distance to Base of Support')
     ax.set_xlabel('Timecode (seconds)')
     ax.set_ylabel('Distance (cm)')
@@ -99,29 +88,28 @@ def make_CoM_path_plot(df,ax):
     com_points = np.column_stack((com_x, com_y))
     hull = ConvexHull(com_points)
 
-    # plot bos
+    # Plot bos
     for bos_points in df['bos_parsed']:
-        # Ensure there are at least 3 bos_points to form a closed polygon
-        if len(bos_points) >= 3:
+        if len(bos_points) >= 3: # check at least 3 bos_points for polygon
             poly = Polygon(
                 bos_points, 
                 closed=True, 
                 facecolor='#377aed', 
                 edgecolor='purple', 
-                alpha=0.01  # Translucency (0 = fully transparent, 1 = opaque)
+                alpha=0.01  # 0 = fully transparent, 1 = opaque
             )
             ax.add_patch(poly)
-        elif len(bos_points) == 2:
-            # Fallback for 2-point lines (e.g., frames 0 & 3 in your sample data)
+        elif len(bos_points) == 2: # fallback for 2-point lines
             x_coords, y_coords = zip(*bos_points)
             ax.plot(x_coords, y_coords, color='purple', alpha=0.01, linestyle='--')
 
-    # plot points and convex hull
+    # Plot points and convex hull
     ax.scatter(com_x, com_y, c='#37ed4c', label=f'CoM', alpha=0.7, edgecolors='k')
     for simplex in hull.simplices:
         ax.plot(com_points[simplex, 0], com_points[simplex, 1], 'r--', alpha=0.8)
     ax.fill(com_points[hull.vertices, 0], com_points[hull.vertices, 1], 'red', alpha=0.15, label=f'Convex Hull Area: {hull.volume:.2f} cm^2')
 
+    # Legend
     ax.set_title('CoM within BoS')
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -131,10 +119,9 @@ def make_CoM_path_plot(df,ax):
     ax.legend(loc='lower left', frameon=True, fontsize=10)
     ax.grid(True, linestyle=':', alpha=0.6)
 
-file_path_1 = "recordings\session_20260817_142128\session_metrics.csv"
-file_path_2 = "recordings\session_20260817_142647\session_metrics.csv"
+file_path="recordings\<your_session>\session_metrics.csv"
 # frames_path = "recordings\session_20260814_104425\\frames"
-df = pd.read_csv(file_path_1)
+df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
 fig, axes = plt.subplots(

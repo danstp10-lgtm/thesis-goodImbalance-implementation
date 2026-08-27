@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
 import cv2
-from cv2 import drawContours
 import numpy as np
-from scipy.ndimage import binary_erosion
 from scipy.ndimage import median_filter
-from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation as R
-
 from support_functions import *
 
 # # spacing 8,6mm
@@ -45,7 +41,6 @@ def get_raw_frames(TSP_L,TSP_R):
         # raw_frame_L = cv2.medianBlur(raw_frame_L, kernel_size)
         # raw_frame_R = cv2.medianBlur(raw_frame_R, kernel_size)
 
-
         return raw_frame_L, raw_frame_R
 
 def process_CoP(raw_frame,display_frame):
@@ -67,8 +62,7 @@ def process_BoS(raw_frame, display_frame):
         allPts = np.vstack(contours)
         BoS_pixel = cv2.convexHull(allPts,clockwise=False).reshape(-1, 2)
         BoS_cm = [(a * pixel_X_length, b * pixel_Y_length) for a, b in BoS_pixel]
-        # Add BoS_pixel to display
-        cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1)
+        cv2.drawContours(display_frame, [BoS_pixel], -1, COLOR_BOS, 1) # add BoS_pixel to display
     return BoS_cm
 
 def process_XCoM(com, time_sec, R, t, R_TSP, t_TSP, display_frame):
@@ -123,8 +117,7 @@ def get_Xsens2Tundra_transforms(xsens_samples, tundra_samples):
     # Optimal rotation and translation
     R = np.dot(Vt.T, U.T)
     t = centroid_tundra - np.dot(R, centroid_xsens)
-    # similarity error
-    rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0])
+    rmsd = np.sqrt(np.sum(np.square(np.dot(X, R.T) - V)) / xsens_samples.shape[0]) # similarity error
     return R, t, rmsd
 
 
@@ -146,9 +139,8 @@ def aggragate(data):
     if N > 1:
         alpha_decay=0.8
         weights = alpha_decay ** np.arange(N - 1, -1, -1)
-        weights /= np.sum(weights)  # Normalize weights
+        weights /= np.sum(weights)  # normalize weights
         aggragate_data = np.sum(data * weights[:, None], axis=0)
-        # print(f"data: {data} \n into {aggragate_data}")
     else: 
         return data.copy()
     return aggragate_data

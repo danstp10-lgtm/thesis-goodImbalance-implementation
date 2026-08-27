@@ -30,7 +30,7 @@ class XsensUDPListener:
         last_received = None
         last_message_type = None
         while self._running:
-            # try:
+            try:
                 data, _ = self.socket.recvfrom(8*self.packet_length)
                 if not data:
                     continue
@@ -48,9 +48,9 @@ class XsensUDPListener:
                             self.segments = pos 
                             
                         self.new_data_available = True
-            # except Exception as e:
-            #     print(e.args)
-            #     time.sleep(0.001)
+            except Exception as e:
+                print(e.args)
+                time.sleep(0.001)
 
     def get_latest_data(self):
         with self._lock:
@@ -100,33 +100,6 @@ class XsensUDPListener:
                 floats = struct.unpack('>7f', message[start + 4 : start + packet_size])
                 pos[s, :] = floats[0:3]
                 ori[s, :] = floats[3:7]
-        elif message_type == 3: # Point Data, likely no Hand
-            packet_size = 16
-            pos = np.zeros((num_segments, 3))
-            for s in range(num_segments):
-                start = header_length + s*packet_size
-                floats = struct.unpack('>3f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[0:3]
-        elif message_type == 21:
-            segments = [14,10] # choose which segments to send
-            packet_size = 40 
-            pos = np.zeros((2, 3))
-            # ori = np.zeros((2, 4))
-            for s in range(len(segments)):
-                start = header_length + packet_size*segments[s] 
-                floats = struct.unpack('>9f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[0:3]
-                # ori[s, :] = floats[3:7]
-        elif message_type == 23:
-            segments = [14,10] # choose which segments to send
-            packet_size = 68 
-            pos = np.zeros((2, 3))
-            # ori = np.zeros((2, 4))
-            for s in range(len(segments)):
-                start = header_length + packet_size*segments[s] 
-                floats = struct.unpack('>16f', message[start + 4 : start + packet_size])
-                pos[s, :] = floats[3:7]
-                # ori[s, :] = floats[3:7]
         elif message_type == 24: # CoM data
             packet_size = 36
             start = header_length

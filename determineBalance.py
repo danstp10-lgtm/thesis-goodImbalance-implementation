@@ -6,7 +6,6 @@ from support_functions import *
 import cv2
 from triad_openvr import triad_openvr
 import numpy as np
-from collections import deque
 
 rows, columns, between_patch_distance = 27, 19, 15 # TSP parameters
 
