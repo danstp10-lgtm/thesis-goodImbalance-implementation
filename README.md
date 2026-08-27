@@ -2,7 +2,7 @@
 This repository contains the implementation of a Master's thesis: "The good imbalance, developing smart equipment with concepts from abundance theory for handstand training" [[1]](#1)
 
 ## Description
-A set of scripts implementing the balance estimation model proposed in [[2]](#2), saving its data and plotting it for analysis. This branch includes a custom calibration step to allows absolute localization between devices.
+A set of scripts implementing the balance estimation model proposed in [[2]](#2), saving its data and plotting it for analysis. This branch includes a custom calibration step to allow absolute localization between devices.
 
 ## Requirements
 ### Dependencies
