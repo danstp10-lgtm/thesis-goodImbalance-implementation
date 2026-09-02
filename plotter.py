@@ -25,7 +25,7 @@ def make_distance_plot(df,ax):
 
     # Plot distances
     ax.plot(df['timecode'], df['cop2bos_smooth'], label='b_CoP', color='#F2340F', linewidth=2)
-    ax.plot(df['timecode'], df['com2bos_smooth'], label='b_CoM', color='#039e00', linewidth=2)
+    # ax.plot(df['timecode'], df['com2bos_smooth'], label='b_CoM', color='#039e00', linewidth=2)
     ax.plot(df['timecode'], df['xcom2bos_smooth'], label='b_XCoM', color='#F2C80F', linewidth=2)
 
     # Semi transparent raw data points
@@ -123,7 +123,7 @@ def make_CoM_path_plot(df,ax):
     ax.grid(True, linestyle=':', alpha=0.6)
 
 
-file_path="recordings\<your_session>\session_metrics.csv"
+file_path="recordings\session_20260902_110139\session_metrics.csv"
 # frames_path = "recordings\session_20260814_104425\\frames"
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
