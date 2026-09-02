@@ -3,6 +3,7 @@
 import cv2
 from cv2 import drawContours
 import numpy as np
+import math
 from scipy.ndimage import binary_erosion
 from scipy.spatial.transform import Rotation as R
 
@@ -72,21 +73,23 @@ def process_XCoM(com, time_sec, R_TSP, t_TSP, display_frame):
     com_pos = com[0:3]
     com_vel = com[3:7]
     xsens_XCoM = com_pos + (com_vel / omega_0)
+    if xsens_XCoM.any() == float("inf"):
+        xsens_XCoM = com_pos.copy()
     TSP_XCoM = transform_Xsens2TSP(xsens_XCoM, R_TSP, t_TSP ) * 100 # transform XCoM to TSP
     TSP_CoM = transform_Xsens2TSP(com_pos, R_TSP, t_TSP ) * 100 # transform CoM to TSP
 
     # Show XCoM on display
-    # XCoM_pixel = [int(TSP_XCoM[0]/0.8),int(TSP_XCoM[1]/0.6)] 
-    # if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
-    #     cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
-    #     print("XCoM in bounds")
+    XCoM_pixel = [int(TSP_XCoM[0]/0.8),int(TSP_XCoM[1]/0.6)] 
+    if 0 < XCoM_pixel[0] < display_frame.shape[1] and 0 < XCoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(display_frame,(XCoM_pixel[0],XCoM_pixel[1]),COLOR_XCOM,cv2.MARKER_STAR,1,1)
+        print("XCoM in bounds")
 
     # Show CoM on display
-    # CoM_pixel = [int(TSP_CoM[0]/0.8), int(TSP_CoM[1]/0.6)]
-    # # print(f"CoM pixel: {CoM_pixel}")
-    # if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
-    #     cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
-    #     print("CoM in bounds")
+    CoM_pixel = [int(TSP_CoM[0]/0.8), int(TSP_CoM[1]/0.6)]
+    # print(f"CoM pixel: {CoM_pixel}")
+    if 0 < CoM_pixel[0] < display_frame.shape[1] and 0 < CoM_pixel[1] < display_frame.shape[0]:
+        cv2.drawMarker(display_frame,(CoM_pixel[0],CoM_pixel[1]),COLOR_COM,cv2.MARKER_STAR,1,1)
+        print("CoM in bounds")
         
     return TSP_XCoM, TSP_CoM
 
