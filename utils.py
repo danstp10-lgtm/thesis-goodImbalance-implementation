@@ -21,6 +21,12 @@ COLOR_BOS = (255, 0, 0)  # Bright Blue
 COLOR_COM = (0, 255, 0)  # Bright Green
 COLOR_XCOM = (0, 255, 255)  # Bright Yellow
 
+M_swap = np.array([
+        [-1, 0, 0],  # X -> y
+        [0, -1, 0],  # Y -> x
+        [0, 0, 1]   # Z -> Y
+    ])
+
 def get_raw_frames(TSP_L,TSP_R):
         # Get raw pressure data
         raw_frame_L = TSP_L.readFrame().astype(np.uint8)
@@ -110,7 +116,7 @@ def calculate_min_dist(BoS, CoP, CoM, XCoM):
 def transform_Xsens2TSP(P_xsens, R_TSP, t_TSP):
     xsens_TSP = P_xsens-t_TSP
     xsens_TSP[1] = 0.114-xsens_TSP[1]
-    return xsens_TSP
+    return M_swap @ xsens_TSP 
         
 def aggragate(data):
     N = len(data)
