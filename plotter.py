@@ -77,8 +77,17 @@ def make_distance_plot(df,ax):
     ax.ticklabel_format(useOffset=False, style='plain', axis='x')
 
 def make_CoM_path_plot(df,ax):
-    com_x = df["com_x"].interpolate(method='linear').bfill().ffill()
-    com_y = df["com_y"].interpolate(method='linear').bfill().ffill()
+
+    # filtered_data = df[(df["timecode"] >= 16.7) & (df["timecode"] <= 36.5)][["timecode", "com_x", "com_y", "bos"]]
+    # com_x = df["com_x"].interpolate(method='linear').bfill().ffill() # all points
+    # com_y = df["com_y"].interpolate(method='linear').bfill().ffill() # all points
+    df['timecode'] = df['timecode'] - df['timecode'].iloc[0]
+    com_x_upright = df[(df['timecode'] >= 16.7) & (df['timecode'] <= 36.5)][["com_x"]].interpolate(method='linear').bfill().ffill()
+    com_y_upright = df[(df['timecode'] >= 16.7) & (df['timecode'] <= 36.5)][["com_y"]].interpolate(method='linear').bfill().ffill()
+    com_x_regular = df[(df['timecode'] >= 37) & (df['timecode'] <= 85)][["com_x"]].interpolate(method='linear').bfill().ffill()
+    com_y_regular = df[(df['timecode'] >= 37) & (df['timecode'] <= 85)][["com_y"]].interpolate(method='linear').bfill().ffill()
+
+
     def parse_bos(val):
         if pd.isna(val) or not isinstance(val, str):
             return []
@@ -86,10 +95,15 @@ def make_CoM_path_plot(df,ax):
             return ast.literal_eval(val)
         except (ValueError, SyntaxError):
             return []
+
     df['bos_parsed'] = df['bos'].apply(parse_bos)
 
-    com_points = np.column_stack((com_x, com_y))
-    hull = ConvexHull(com_points)
+    # com_points_all = np.column_stack((com_x, com_y))
+    com_points_upright = np.column_stack((com_x_upright, com_y_upright))
+    com_points_regular = np.column_stack((com_x_regular, com_y_regular))
+    # hull_all = ConvexHull(com_points_all)
+    hull_upright = ConvexHull(com_points_upright)
+    hull_regular = ConvexHull(com_points_regular)
 
     # Plot bos
     for bos_points in df['bos_parsed']:
@@ -107,10 +121,93 @@ def make_CoM_path_plot(df,ax):
             ax.plot(x_coords, y_coords, color='purple', alpha=0.01, linestyle='--')
 
     # Plot points and convex hull
-    ax.scatter(com_x, com_y, c='#37ed4c', label=f'CoM', alpha=0.7, edgecolors='k')
-    for simplex in hull.simplices:
-        ax.plot(com_points[simplex, 0], com_points[simplex, 1], 'r--', alpha=0.8)
-    ax.fill(com_points[hull.vertices, 0], com_points[hull.vertices, 1], 'red', alpha=0.15, label=f'Convex Hull Area: {hull.volume:.2f} cm^2')
+    # ax.scatter(com_x, com_y, c='#37ed4c', label=f'CoM', alpha=0.7, edgecolors='k')
+    # for simplex in hull_all.simplices:
+    #     ax.plot(com_points_all[simplex, 0], com_points_all[simplex, 1], 'r--', alpha=0.8)
+    # ax.fill(com_points_all[hull_all.vertices, 0], com_points_all[hull_all.vertices, 1], 'red', alpha=0.15, label=f'Convex Hull Area: {hull_all.volume:.2f} cm^2')
+    ax.scatter(com_x_upright, com_y_upright, c='#8feb34', label=f'CoM upright', alpha=0.7, edgecolors='k')
+    ax.scatter(com_x_regular, com_y_regular, c='#eb4034', label=f'CoM regular', alpha=0.7, edgecolors='k')
+    for simplex in hull_upright.simplices:
+        ax.plot(com_points_upright[simplex, 0], com_points_upright[simplex, 1], 'y--', alpha=0.8)
+    ax.fill(com_points_upright[hull_upright.vertices, 0], com_points_upright[hull_upright.vertices, 1], 'green', alpha=0.15, label=f'Convex Hull Area: {hull_upright.volume:.2f} cm^2')
+
+def make_CoM_path_segregate_plot(df,ax):
+    # Define condition
+    condition = (
+        (df['xcom2bos_dist_cm'] >= df['cop2bos_dist_cm']) | 
+        (df['xcom2bos_dist_cm'] < df['cop2bos_dist_cm'])
+        ) #& (~(df['xcom2bos_dist_cm'] < 0))    
+    block_ids = condition.ne(condition.shift()).cumsum()
+    true_segments = []
+    time_period = []
+    for _, group in df.groupby(block_ids):
+        com_x = group['com_x']
+        com_y = group['com_y']
+        if condition.loc[group.index[0]]:
+            valid_group = group.dropna(subset=['com_x', 'com_y']) # drop nans
+            if len(valid_group) >= 3: # need min 3 points for hull
+                t_start = valid_group['timecode'].iloc[0]
+                t_end = valid_group['timecode'].iloc[-1]
+                
+                true_segments.append({
+                    'x': valid_group['com_x'].to_numpy(),
+                    'y': valid_group['com_y'].to_numpy(),
+                    'time': valid_group['timecode'].to_numpy(),
+                    'start_time': t_start,
+                    'finish_time': t_end,
+                    'duration': t_end - t_start
+                })
+    def parse_bos(val):
+        if pd.isna(val) or not isinstance(val, str):
+            return []
+        try:
+            return ast.literal_eval(val)
+        except (ValueError, SyntaxError):
+            return []
+    df['bos_parsed'] = df['bos'].apply(parse_bos)
+
+    # Plot bos
+    for bos_points in df['bos_parsed']:
+        if len(bos_points) >= 3: # minimum three points for a polygon
+            poly = Polygon(
+                bos_points, 
+                closed=True, 
+                fill=False, 
+                edgecolor='purple', 
+                alpha=0.01  # 0 = fully transparent, 1 = opaque
+            )
+            ax.add_patch(poly)
+        elif len(bos_points) == 2: # fallback for less than 3 points
+            x_coords, y_coords = zip(*bos_points)
+            ax.plot(x_coords, y_coords, color='purple', alpha=0.01, linestyle='--')
+
+    # Plot segmented balance periods
+    colors = plt.cm.tab10.colors  # Uses 10 distinct colors
+    for i, seg in enumerate(true_segments):
+        x_data, y_data = seg['x'], seg['y']        
+        segment_color = colors[i % len(colors)]
+        com_points = np.column_stack((x_data, y_data))
+        hull = ConvexHull(com_points)
+
+        ax.scatter(x_data, y_data, color=segment_color, alpha=0.3, edgecolors='k', linewidths=0.5)
+        # Fill the convex hull area (hull.volume gives area in 2D)
+        ax.fill(
+            com_points[hull.vertices, 0], 
+            com_points[hull.vertices, 1], 
+            color=segment_color, 
+            alpha=0.15,
+            label=f'Seg {i+1} ({seg['start_time']:.1f}s - {seg['finish_time']:.1f}s Area: {hull.volume:.2f} cm²'
+        )
+        
+        # Draw hull contour outline
+        for simplex in hull.simplices:
+            ax.plot(
+                com_points[simplex, 0], 
+                com_points[simplex, 1], 
+                color=segment_color, 
+                linestyle='--', 
+                alpha=0.9
+            )
 
     # Legend
     ax.set_title('CoM within BoS')
@@ -123,9 +220,13 @@ def make_CoM_path_plot(df,ax):
     ax.grid(True, linestyle=':', alpha=0.6)
 
 
-file_path="recordings\session_20260902_110139\session_metrics.csv"
+file_path="recordings\session_20260817_142647\session_metrics.csv" # custom upright example
+file_path2="recordings\session_20260819_131339\session_metrics.csv" # custom regular
+file_path3="recordings\session_20260824_111952\session_metrics.csv" # built-in chair
+file_path4="recordings\session_20260824_111023\session_metrics.csv" # built-in regular
+
 # frames_path = "recordings\session_20260814_104425\\frames"
-df = pd.read_csv(file_path)
+df = pd.read_csv(file_path4)
 df.columns = df.columns.str.strip()
 
 fig, axes = plt.subplots(
@@ -137,6 +238,6 @@ fig, axes = plt.subplots(
         }
     )
 make_distance_plot(df,axes[0])
-make_CoM_path_plot(df,axes[1])
+make_CoM_path_segregate_plot(df,axes[1])
 plt.tight_layout()
 plt.show()
